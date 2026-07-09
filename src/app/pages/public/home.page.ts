@@ -98,7 +98,7 @@ import { ClubEvent } from '../../types/club.models';
     <footer class="footer">
       <div>
         <strong>ClubWeb</strong>
-        <span>club@example.edu.tw / FB / IG / Discord</span>
+        <span>club&#64;example.edu.tw / FB / IG / Discord</span>
       </div>
       <a routerLink="/login">社員登入</a>
     </footer>

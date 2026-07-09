@@ -15,9 +15,9 @@ import { AuthService } from '../../services/auth.service';
         <p class="muted">登入後可以報名活動、查看自己的報名紀錄、接收活動與審核通知。</p>
         <div class="mock-hint">
           <strong>測試帳號</strong>
-          <span>barry@example.com / password (Member)</span>
-          <span>amy@example.com / password (Officer)</span>
-          <span>kevin@example.com / password (Admin)</span>
+          @for (account of mockAccounts; track account) {
+            <span>{{ account }}</span>
+          }
         </div>
       </div>
 
@@ -56,6 +56,12 @@ export class LoginPage {
   email = 'barry@example.com';
   password = 'password';
   remember = true;
+
+  readonly mockAccounts = [
+    'barry&#64;example.com / password (Member)',
+    'amy&#64;example.com / password (Officer)',
+    'kevin&#64;example.com / password (Admin)',
+  ];
 
   submit(): void {
     this.auth.login(this.email, this.password);

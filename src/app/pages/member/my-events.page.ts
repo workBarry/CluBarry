@@ -1,11 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { ClubDataService } from '../../services/club-data.service';
 
 @Component({
   selector: 'app-my-events-page',
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   template: `
     <section class="page-heading">
       <span class="eyebrow">My Events</span>
