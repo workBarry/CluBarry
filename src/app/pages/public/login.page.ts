@@ -28,7 +28,11 @@ import { AuthService } from '../../services/auth.service';
         </label>
         <label>
           Password
-          <input type="password" name="password" [(ngModel)]="password" placeholder="password" />
+          <input [type]="showPassword ? 'text' : 'password'" name="password" [(ngModel)]="password" placeholder="password" />
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="showPassword" name="showPw" />
+          顯示密碼
         </label>
         <label class="checkbox-row">
           <input type="checkbox" name="remember" [(ngModel)]="remember" />
@@ -56,6 +60,7 @@ export class LoginPage {
   email = 'barry@example.com';
   password = 'password';
   remember = true;
+  showPassword = false;
 
   readonly mockAccounts = [
     'barry&#64;example.com / password (Member)',
@@ -63,7 +68,7 @@ export class LoginPage {
     'kevin&#64;example.com / password (Admin)',
   ];
 
-  submit(): void {
-    this.auth.login(this.email, this.password);
+  async submit(): Promise<void> {
+    await this.auth.login(this.email, this.password);
   }
 }

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './services/auth.service';
 import { ClubDataService } from './services/club-data.service';
@@ -10,7 +10,7 @@ import { ClubDataService } from './services/club-data.service';
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   readonly auth = inject(AuthService);
   private readonly data = inject(ClubDataService);
 
@@ -18,16 +18,25 @@ export class AppComponent {
     { label: '首頁', path: '/', exact: true },
     { label: '公告', path: '/announcements' },
     { label: '活動', path: '/events' },
+  ];
+
+  readonly drawerItems = [
     { label: '我的活動', path: '/my-events' },
     { label: '通知', path: '/notifications' },
     { label: '個人中心', path: '/profile' },
   ];
 
-  constructor() {
-    effect(() => {
-      if (this.auth.currentUser()) {
-        this.data.syncFromFirebase();
-      }
-    });
+  drawerOpen = false;
+
+  ngOnInit(): void {
+    this.data.syncFromFirebase();
+  }
+
+  toggleDrawer(): void {
+    this.drawerOpen = !this.drawerOpen;
+  }
+
+  closeDrawer(): void {
+    this.drawerOpen = false;
   }
 }

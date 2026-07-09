@@ -14,23 +14,37 @@
       </a>
     </nav>
 
-    <div class="user-chip">
-      <ng-container *ngIf="auth.currentUser() as user; else loginLink">
-        <span>{{ user.avatar }}</span>
-        <div>
-          <strong>{{ user.name }}</strong>
-          <small>{{ user.role }}</small>
-        </div>
-        <a class="btn ghost small" (click)="auth.logout()" style="cursor:pointer;margin-left:0.5rem">登出</a>
-      </ng-container>
-      <ng-template #loginLink>
+    <div class="user-chip" *ngIf="auth.currentUser() as user; else loginLink">
+      <a class="bell-icon" routerLink="/notifications" title="通知">🔔</a>
+      <span (click)="toggleDrawer()" style="cursor:pointer">{{ user.avatar }}</span>
+      <div (click)="toggleDrawer()" style="cursor:pointer">
+        <strong>{{ user.name }}</strong>
+        <small>{{ user.role }}</small>
+      </div>
+    </div>
+    <ng-template #loginLink>
+      <div class="user-chip">
         <a class="btn primary small" routerLink="/login">登入</a>
         <a class="btn secondary small" routerLink="/register">註冊</a>
-      </ng-template>
-    </div>
+      </div>
+    </ng-template>
   </header>
 
   <main>
     <router-outlet />
   </main>
+
+  <div class="drawer-backdrop" *ngIf="drawerOpen" (click)="closeDrawer()"></div>
+  <aside class="drawer" [class.open]="drawerOpen">
+    <div class="drawer-header">
+      <span *ngIf="auth.currentUser() as user">{{ user.name }}</span>
+      <button class="drawer-close" (click)="closeDrawer()">✕</button>
+    </div>
+    <nav class="drawer-nav">
+      <a *ngFor="let item of drawerItems" [routerLink]="item.path" (click)="closeDrawer()">{{ item.label }}</a>
+    </nav>
+    <div class="drawer-footer">
+      <button class="btn ghost" (click)="closeDrawer(); auth.logout()">登出</button>
+    </div>
+  </aside>
 </div>

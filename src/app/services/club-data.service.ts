@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { AuthService } from './auth.service';
 import { FirebaseService } from './firebase.service';
 import { announcements, events, notifications, registrations, users } from '../data/mock-club-data';
 import { Announcement, ClubEvent, ClubUser, Notification, Registration } from '../types/club.models';
@@ -7,13 +8,36 @@ import { Announcement, ClubEvent, ClubUser, Notification, Registration } from '.
 @Injectable({ providedIn: 'root' })
 export class ClubDataService {
   private readonly firebase = inject(FirebaseService);
+  private readonly auth = inject(AuthService);
 
   private readonly eventState = signal<ClubEvent[]>(events.map((e) => ({ ...e })));
   private readonly registrationState = signal<Registration[]>(registrations.map((r) => ({ ...r })));
   private readonly notificationState = signal<Notification[]>(notifications.map((n) => ({ ...n })));
+  private readonly announcementState = signal<Announcement[]>([]);
 
-  readonly currentUser = signal<ClubUser>({ ...users[0] });
   readonly firebaseReady = signal(false);
+
+  get currentUser(): ClubUser {
+    const authUser = this.auth.currentUser();
+    if (!authUser) return { ...users[0] };
+    return {
+      id: Number(authUser.id) || 0,
+      avatar: authUser.avatar,
+      name: authUser.name,
+      email: authUser.email,
+      role: authUser.role,
+      studentId: '',
+      department: '',
+      grade: '',
+      phone: '',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  get currentUserId(): string {
+    return this.auth.currentUser()?.id ?? '0';
+  }
 
   async syncFromFirebase(): Promise<void> {
     try {
@@ -23,9 +47,7 @@ export class ClubDataService {
       ]);
 
       if (fbEvents?.length) this.eventState.set(fbEvents as ClubEvent[]);
-      if (fbAnnouncements?.length) {
-        // announcements are stored in a separate signal-like read-only access
-      }
+      if (fbAnnouncements?.length) this.announcementState.set(fbAnnouncements as Announcement[]);
 
       this.firebaseReady.set(true);
     } catch {
@@ -47,9 +69,8 @@ export class ClubDataService {
   }
 
   announcements(): Announcement[] {
-    if (this.firebaseReady()) {
-      return announcements.filter((a) => a.status === 'published');
-    }
+    const fb = this.announcementState();
+    if (fb.length) return fb.filter((a) => a.status === 'published');
     return announcements.filter((announcement) => announcement.status === 'published');
   }
 
@@ -58,12 +79,12 @@ export class ClubDataService {
   }
 
   registrationsForCurrentUser(): Registration[] {
-    const userId = String(this.currentUser().id);
+    const userId = this.currentUserId;
     return this.registrationState().filter((registration) => String(registration.userId) === userId);
   }
 
   notificationsForCurrentUser(): Notification[] {
-    const userId = String(this.currentUser().id);
+    const userId = this.currentUserId;
     return this.notificationState().filter((notification) => String(notification.userId) === userId);
   }
 
@@ -79,10 +100,10 @@ export class ClubDataService {
     const event = this.eventById(eventId);
     if (!event || event.currentCount >= event.capacity) return;
 
-    const userId = this.currentUser().id;
+    const userId = this.currentUserId;
     const newRegistration: Registration = {
       id: Date.now(),
-      userId,
+      userId: Number(userId),
       eventId: Number(eventId),
       paymentStatus: 'unpaid',
       checkIn: false,
@@ -97,7 +118,7 @@ export class ClubDataService {
 
     const newNotification: Notification = {
       id: Date.now() + 1,
-      userId,
+      userId: Number(userId),
       title: '報名成功',
       content: `你已完成「${event.title}」報名。`,
       type: 'event',

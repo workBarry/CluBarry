@@ -29,10 +29,10 @@ export class AuthService {
       }
     }
 
-    effect(() => {
+    effect((onCleanup) => {
       const fbUser = this.firebase.currentFirebaseUser();
       if (fbUser) {
-        this.firebase.getUser(fbUser.uid).subscribe({
+        const sub = this.firebase.getUser(fbUser.uid).subscribe({
           next: (userData) => {
             if (userData) {
               const authUser: AuthUser = {
@@ -44,6 +44,16 @@ export class AuthService {
               };
               this.currentUser.set(authUser);
               localStorage.setItem('club_user', JSON.stringify(authUser));
+            } else {
+              const fallback: AuthUser = {
+                id: fbUser.uid,
+                name: fbUser.displayName || fbUser.email!.split('@')[0],
+                email: fbUser.email!,
+                avatar: fbUser.email!.slice(0, 2).toUpperCase(),
+                role: 'Member',
+              };
+              this.currentUser.set(fallback);
+              localStorage.setItem('club_user', JSON.stringify(fallback));
             }
           },
           error: () => {
@@ -58,10 +68,15 @@ export class AuthService {
             localStorage.setItem('club_user', JSON.stringify(fallback));
           },
         });
+        onCleanup(() => sub.unsubscribe());
       }
     });
 
-
+    effect(() => {
+      if (this.currentUser() && this.router.url === '/login') {
+        this.router.navigate(['/']);
+      }
+    });
   }
 
   get isAuthenticated(): boolean {
@@ -81,7 +96,7 @@ export class AuthService {
     this.error.set('');
     try {
       const fbUser = await this.firebase.register(email, password);
-      await this.firebase.createUser({
+      await this.firebase.setUser(fbUser.uid, {
         avatar: profile.name.slice(0, 2).toUpperCase(),
         name: profile.name,
         studentId: profile.studentId,
@@ -89,7 +104,6 @@ export class AuthService {
         grade: '',
         email,
         phone: '',
-        password,
         role: 'Member' as const,
         status: 'pending' as const,
         createdAt: new Date().toISOString(),
@@ -100,8 +114,8 @@ export class AuthService {
     }
   }
 
-  logout(): void {
-    this.firebase.logout();
+  async logout(): Promise<void> {
+    await this.firebase.logout();
     this.currentUser.set(null);
     localStorage.removeItem('club_user');
     this.router.navigate(['/login']);

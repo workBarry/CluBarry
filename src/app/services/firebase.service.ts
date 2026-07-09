@@ -3,7 +3,7 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import {
   Firestore, getFirestore,
   collection, doc,
-  addDoc, updateDoc, deleteDoc,
+  addDoc, setDoc, deleteDoc,
   query, where, orderBy, Timestamp, onSnapshot, DocumentReference,
 } from 'firebase/firestore';
 import {
@@ -19,9 +19,11 @@ export class FirebaseService {
   private readonly app: FirebaseApp;
   private readonly firestore: Firestore;
   private readonly auth: Auth;
+  private readonly zone: NgZone;
   readonly currentFirebaseUser = signal<FirebaseUser | null>(null);
 
   constructor(zone: NgZone) {
+    this.zone = zone;
     this.app = initializeApp(environment.firebase);
     this.firestore = getFirestore(this.app);
     this.auth = getAuth(this.app);
@@ -34,10 +36,12 @@ export class FirebaseService {
   private snapshotObservable<T>(ref: any): Observable<T[]> {
     return new Observable((observer) => {
       const unsub = onSnapshot(ref, (snap: any) => {
-        const items: T[] = [];
-        snap.forEach((d: any) => items.push({ id: d.id, ...d.data() } as T));
-        observer.next(items);
-      }, (err: any) => observer.error(err));
+        this.zone.run(() => {
+          const items: T[] = [];
+          snap.forEach((d: any) => items.push({ id: d.id, ...d.data() } as T));
+          observer.next(items);
+        });
+      }, (err: any) => this.zone.run(() => observer.error(err)));
       return { unsubscribe: unsub };
     });
   }
@@ -45,8 +49,10 @@ export class FirebaseService {
   private docObservable<T>(ref: any): Observable<T | undefined> {
     return new Observable((observer) => {
       const unsub = onSnapshot(ref, (snap: any) => {
-        observer.next(snap.exists() ? ({ id: snap.id, ...snap.data() } as T) : undefined);
-      }, (err: any) => observer.error(err));
+        this.zone.run(() => {
+          observer.next(snap.exists() ? ({ id: snap.id, ...snap.data() } as T) : undefined);
+        });
+      }, (err: any) => this.zone.run(() => observer.error(err)));
       return { unsubscribe: unsub };
     });
   }
@@ -77,8 +83,12 @@ export class FirebaseService {
     return addDoc(collection(this.firestore, 'users'), { ...data, createdAt: Timestamp.now() });
   }
 
+  setUser(id: string, data: Omit<ClubUser, 'id'>): Promise<void> {
+    return setDoc(doc(this.firestore, `users/${id}`), { ...data, createdAt: Timestamp.now() });
+  }
+
   updateUser(id: string, data: Partial<ClubUser>): Promise<void> {
-    return updateDoc(doc(this.firestore, `users/${id}`), data);
+    return setDoc(doc(this.firestore, `users/${id}`), data, { merge: true });
   }
 
   // --- Events ---
@@ -111,7 +121,7 @@ export class FirebaseService {
   }
 
   updateRegistration(id: string, data: Partial<Registration>): Promise<void> {
-    return updateDoc(doc(this.firestore, `registrations/${id}`), data);
+    return setDoc(doc(this.firestore, `registrations/${id}`), data, { merge: true });
   }
 
   // --- Announcements ---
@@ -143,6 +153,6 @@ export class FirebaseService {
   }
 
   markNotificationRead(id: string): Promise<void> {
-    return updateDoc(doc(this.firestore, `notifications/${id}`), { isRead: true });
+    return setDoc(doc(this.firestore, `notifications/${id}`), { isRead: true }, { merge: true });
   }
 }

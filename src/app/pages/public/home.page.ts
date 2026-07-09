@@ -100,7 +100,6 @@ import { ClubEvent } from '../../types/club.models';
         <strong>ClubWeb</strong>
         <span>club&#64;example.edu.tw / FB / IG / Discord</span>
       </div>
-      <a routerLink="/login">社員登入</a>
     </footer>
   `,
 })

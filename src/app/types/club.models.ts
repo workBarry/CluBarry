@@ -14,7 +14,6 @@ export interface ClubUser {
   grade: string;
   email: string;
   phone: string;
-  password: string;
   role: UserRole;
   status: UserStatus;
   createdAt: string;

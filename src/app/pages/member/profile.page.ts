@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ClubDataService } from '../../services/club-data.service';
+import { AuthService } from '../../services/auth.service';
+import { FirebaseService } from '../../services/firebase.service';
 
 @Component({
   selector: 'app-profile-page',
@@ -10,14 +11,14 @@ import { ClubDataService } from '../../services/club-data.service';
     <section class="page-heading">
       <span class="eyebrow">Profile</span>
       <h1>個人中心</h1>
-      <p>管理頭像、姓名、Email、手機、系級與密碼。</p>
+      <p>管理頭像、姓名、Email、手機、系級。</p>
     </section>
 
     <section class="profile-grid">
       <aside class="panel profile-card">
-        <span class="profile-avatar">{{ data.currentUser().avatar }}</span>
-        <h2>{{ data.currentUser().name }}</h2>
-        <p>{{ data.currentUser().role }} / {{ data.currentUser().status }}</p>
+        <span class="profile-avatar">{{ auth.currentUser()?.avatar }}</span>
+        <h2>{{ auth.currentUser()?.name }}</h2>
+        <p>{{ auth.currentUser()?.role }}</p>
       </aside>
 
       <form class="form-card two-cols" (ngSubmit)="save()">
@@ -37,14 +38,6 @@ import { ClubDataService } from '../../services/club-data.service';
           系級
           <input name="department" [(ngModel)]="profile.department" />
         </label>
-        <label>
-          新密碼
-          <input type="password" name="password" [(ngModel)]="password" />
-        </label>
-        <label>
-          確認密碼
-          <input type="password" name="confirmPassword" [(ngModel)]="confirmPassword" />
-        </label>
         <button class="btn primary full" type="submit">儲存</button>
         <p class="form-message full" *ngIf="message">{{ message }}</p>
       </form>
@@ -52,15 +45,23 @@ import { ClubDataService } from '../../services/club-data.service';
   `,
 })
 export class ProfilePage {
-  readonly data = inject(ClubDataService);
+  readonly auth = inject(AuthService);
+  private readonly firebase = inject(FirebaseService);
 
-  profile = { ...this.data.currentUser() };
-  password = '';
-  confirmPassword = '';
+  profile = { name: '', email: '', phone: '', department: '' };
   message = '';
 
-  save(): void {
-    this.data.currentUser.set({ ...this.data.currentUser(), ...this.profile });
-    this.message = '個人資料已更新。密碼變更之後會串接 PUT /users/:id。';
+  constructor() {
+    const user = this.auth.currentUser();
+    if (user) {
+      this.profile = { name: user.name, email: user.email, phone: '', department: '' };
+    }
+  }
+
+  async save(): Promise<void> {
+    const user = this.auth.currentUser();
+    if (!user) return;
+    await this.firebase.updateUser(user.id, this.profile);
+    this.message = '個人資料已更新。';
   }
 }
