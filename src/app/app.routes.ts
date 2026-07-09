@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { memberGuard } from './services/auth.guard';
+import { memberGuard, loginGuard } from './services/auth.guard';
 import { AnnouncementDetailPage } from './pages/public/announcement-detail.page';
 import { AnnouncementsPage } from './pages/public/announcements.page';
 import { EventDetailPage } from './pages/public/event-detail.page';
@@ -13,7 +13,7 @@ import { ProfilePage } from './pages/member/profile.page';
 
 export const routes: Routes = [
   { path: '', component: HomePage, title: 'ClubWeb - 首頁' },
-  { path: 'login', component: LoginPage, title: 'ClubWeb - 登入' },
+  { path: 'login', component: LoginPage, title: 'ClubWeb - 登入', canActivate: [loginGuard] },
   { path: 'register', component: RegisterPage, title: 'ClubWeb - 註冊' },
   { path: 'announcements', component: AnnouncementsPage, title: 'ClubWeb - 公告' },
   { path: 'announcements/:id', component: AnnouncementDetailPage, title: 'ClubWeb - 公告詳情' },

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './services/auth.service';
 import { ClubDataService } from './services/club-data.service';
@@ -10,7 +10,7 @@ import { ClubDataService } from './services/club-data.service';
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   readonly auth = inject(AuthService);
   private readonly data = inject(ClubDataService);
 
@@ -23,7 +23,11 @@ export class AppComponent implements OnInit {
     { label: '個人中心', path: '/profile' },
   ];
 
-  ngOnInit(): void {
-    this.data.syncFromFirebase();
+  constructor() {
+    effect(() => {
+      if (this.auth.currentUser()) {
+        this.data.syncFromFirebase();
+      }
+    });
   }
 }

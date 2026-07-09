@@ -32,21 +32,36 @@ export class AuthService {
     effect(() => {
       const fbUser = this.firebase.currentFirebaseUser();
       if (fbUser) {
-        this.firebase.getUser(fbUser.uid).subscribe((userData) => {
-          if (userData) {
-            const authUser: AuthUser = {
+        this.firebase.getUser(fbUser.uid).subscribe({
+          next: (userData) => {
+            if (userData) {
+              const authUser: AuthUser = {
+                id: fbUser.uid,
+                name: userData.name,
+                email: userData.email,
+                avatar: userData.avatar ?? userData.name.slice(0, 2).toUpperCase(),
+                role: userData.role,
+              };
+              this.currentUser.set(authUser);
+              localStorage.setItem('club_user', JSON.stringify(authUser));
+            }
+          },
+          error: () => {
+            const fallback: AuthUser = {
               id: fbUser.uid,
-              name: userData.name,
-              email: userData.email,
-              avatar: userData.avatar ?? userData.name.slice(0, 2).toUpperCase(),
-              role: userData.role,
+              name: fbUser.displayName || fbUser.email!.split('@')[0],
+              email: fbUser.email!,
+              avatar: fbUser.email!.slice(0, 2).toUpperCase(),
+              role: 'Member',
             };
-            this.currentUser.set(authUser);
-            localStorage.setItem('club_user', JSON.stringify(authUser));
-          }
+            this.currentUser.set(fallback);
+            localStorage.setItem('club_user', JSON.stringify(fallback));
+          },
         });
       }
     });
+
+
   }
 
   get isAuthenticated(): boolean {
