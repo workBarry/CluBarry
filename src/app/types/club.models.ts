@@ -4,9 +4,13 @@ export type EventStatus = 'draft' | 'published' | 'closed' | 'completed';
 export type RegistrationStatus = 'registered' | 'cancelled' | 'completed' | 'waitlisted';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 export type AnnouncementStatus = 'draft' | 'published';
+export type ClubStatus = 'pending' | 'active' | 'closed';
+export type ClubMemberStatus = 'active' | 'pending' | 'suspended';
+export type RoleInClub = 'President' | 'Officer' | 'Member';
+export type SessionStatus = 'open' | 'closed' | 'completed';
 
 export interface ClubUser {
-  id: number;
+  id: string;
   avatar: string;
   name: string;
   studentId: string;
@@ -19,8 +23,31 @@ export interface ClubUser {
   createdAt: string;
 }
 
+export interface Club {
+  id: string;
+  name: string;
+  logo: string;
+  cover: string;
+  description: string;
+  category: string;
+  tags: string[];
+  status: ClubStatus;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ClubMember {
+  id: string;
+  userId: string;
+  clubId: string;
+  roleInClub: RoleInClub;
+  status: ClubMemberStatus;
+  joinedAt: string;
+}
+
 export interface ClubEvent {
-  id: number;
+  id: string;
+  clubId: string;
   title: string;
   cover: string;
   description: string;
@@ -34,14 +61,31 @@ export interface ClubEvent {
   category: string;
   tags: string[];
   status: EventStatus;
-  createdBy: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface Session {
+  id: string;
+  eventId: string;
+  clubId: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  capacity: number;
+  currentCount: number;
+  openToNonMember: boolean;
+  status: SessionStatus;
   createdAt: string;
 }
 
 export interface Registration {
-  id: number;
-  userId: number;
-  eventId: number;
+  id: string;
+  userId: string;
+  clubId: string;
+  eventId: string;
+  sessionId: string;
   paymentStatus: PaymentStatus;
   checkIn: boolean;
   status: RegistrationStatus;
@@ -49,20 +93,21 @@ export interface Registration {
 }
 
 export interface Announcement {
-  id: number;
+  id: string;
+  clubId: string | null;
   title: string;
   content: string;
   cover: string;
   category: string;
   isPinned: boolean;
   status: AnnouncementStatus;
-  createdBy: number;
+  createdBy: string;
   createdAt: string;
 }
 
 export interface Notification {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   title: string;
   content: string;
   type: 'event' | 'announcement' | 'review';

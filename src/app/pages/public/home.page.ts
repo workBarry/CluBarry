@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClubDataService } from '../../services/club-data.service';
-import { ClubEvent } from '../../types/club.models';
+import { Club, ClubEvent } from '../../types/club.models';
 
 @Component({
   selector: 'app-home-page',
@@ -10,63 +10,51 @@ import { ClubEvent } from '../../types/club.models';
   template: `
     <section class="hero-section">
       <div class="hero-copy">
-        <span class="eyebrow">Club Management System</span>
-        <h1>社團活動、公告與社員服務集中管理</h1>
-        <p>前台提供公告瀏覽、活動報名、個人活動紀錄與通知中心，讓社員可以快速完成日常操作。</p>
+        <span class="eyebrow">ClubWeb</span>
+        <h1>探索社團、報名場次、掌握最新公告</h1>
+        <p>前台以「社團」為核心，每個社團可以開設活動與多個場次，社長可設定每個場次是否開放非社員參加。</p>
         <div class="hero-actions">
           <a class="btn primary" routerLink="/events">查看活動</a>
-          <a class="btn secondary" routerLink="/register">加入社團</a>
+          <a class="btn secondary" routerLink="/create-club">開立社團</a>
         </div>
       </div>
-      <div class="hero-visual" aria-label="社團活動概況">
+      <div class="hero-visual" aria-label="社團概況">
         <div class="visual-stat">
-          <strong>{{ data.events().length }}</strong>
-          <span>近期活動</span>
+          <strong>{{ data.clubs().length }}</strong>
+          <span>活躍社團</span>
         </div>
-        <div class="visual-card" *ngFor="let event of latestEvents">
-          <span [style.background]="event.cover"></span>
+        <div class="visual-card" *ngFor="let club of featuredClubs">
+          <span [style.background]="club.cover"></span>
           <div>
-            <strong>{{ event.title }}</strong>
-            <small>{{ event.startTime | date:'MM/dd HH:mm' }} / {{ event.location }}</small>
+            <strong>{{ club.name }}</strong>
+            <small>{{ club.category }}</small>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="content-grid">
-      <article class="panel span-7">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">News</span>
-            <h2>最新公告</h2>
+    <section class="section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Clubs</span>
+          <h2>社團目錄</h2>
+        </div>
+        <a routerLink="/events">所有活動</a>
+      </div>
+      <div class="card-grid">
+        <article class="club-card" *ngFor="let club of data.clubs()">
+          <div class="club-cover" [style.background]="club.cover">
+            <span class="club-logo">{{ club.logo }}</span>
           </div>
-          <a routerLink="/announcements">全部公告</a>
-        </div>
-        <div class="announcement-list">
-          <a class="announcement-item" *ngFor="let item of latestAnnouncements" [routerLink]="['/announcements', item.id]">
-            <span class="pin" *ngIf="item.isPinned">置頂</span>
-            <strong>{{ item.title }}</strong>
-            <small>{{ item.category }} / {{ item.createdAt | date:'yyyy/MM/dd' }}</small>
-            <p>{{ item.content }}</p>
-          </a>
-        </div>
-      </article>
-
-      <aside class="panel span-5">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">About</span>
-            <h2>社團介紹</h2>
+          <div class="club-body">
+            <h3>{{ club.name }}</h3>
+            <span class="tag">{{ club.category }}</span>
+            <p>{{ club.description }}</p>
+            <a class="btn small" [routerLink]="['/clubs', club.id]">進入社團</a>
           </div>
-        </div>
-        <p class="muted">本系統支援 Visitor、Member、Officer、Admin 四種角色，依權限開放瀏覽、報名、管理與審核功能。</p>
-        <div class="role-stack">
-          <span>Visitor</span>
-          <span>Member</span>
-          <span>Officer</span>
-          <span>Admin</span>
-        </div>
-      </aside>
+        </article>
+        <p class="empty" *ngIf="data.clubs().length === 0">目前尚無已開放的社團。</p>
+      </div>
     </section>
 
     <section class="section">
@@ -89,7 +77,7 @@ import { ClubEvent } from '../../types/club.models';
               <span>{{ event.location }}</span>
               <span>剩餘 {{ remaining(event) }}</span>
             </div>
-            <a class="btn small" [routerLink]="['/events', event.id]">查看詳情</a>
+            <a class="btn small" [routerLink]="['/clubs', event.clubId, 'events', event.id]">查看詳情</a>
           </div>
         </article>
       </div>
@@ -106,12 +94,12 @@ import { ClubEvent } from '../../types/club.models';
 export class HomePage {
   readonly data = inject(ClubDataService);
 
-  get latestEvents(): ClubEvent[] {
-    return this.data.events().slice(0, 3);
+  get featuredClubs(): Club[] {
+    return this.data.clubs().slice(0, 3);
   }
 
-  get latestAnnouncements() {
-    return this.data.announcements().slice(0, 3);
+  get latestEvents(): ClubEvent[] {
+    return this.data.events().slice(0, 3);
   }
 
   remaining(event: ClubEvent): number {

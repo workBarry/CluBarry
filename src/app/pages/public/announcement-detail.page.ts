@@ -34,5 +34,5 @@ export class AnnouncementDetailPage {
   private readonly data = inject(ClubDataService);
   private readonly route = inject(ActivatedRoute);
 
-  readonly announcement = this.data.announcementById(Number(this.route.snapshot.paramMap.get('id')));
+  readonly announcement = this.data.announcementById(this.route.snapshot.paramMap.get('id'));
 }

@@ -25,25 +25,20 @@ import { ClubEvent } from '../../types/club.models';
     </section>
 
     <section class="card-grid">
-      <article class="event-card" *ngFor="let event of filteredEvents">
-        <div class="event-cover" [style.background]="event.cover"></div>
-        <div class="event-body">
-          <span class="tag">{{ event.category }}</span>
-          <h2>{{ event.title }}</h2>
-          <p>{{ event.description }}</p>
-          <div class="meta-row">
-            <span>{{ event.startTime | date:'yyyy/MM/dd HH:mm' }}</span>
-            <span>{{ event.location }}</span>
-            <span>剩餘 {{ remaining(event) }} / {{ event.capacity }}</span>
+        <article class="event-card" *ngFor="let event of filteredEvents">
+          <div class="event-cover" [style.background]="event.cover"></div>
+          <div class="event-body">
+            <span class="tag">{{ event.category }}</span>
+            <h2>{{ event.title }}</h2>
+            <p>{{ event.description }}</p>
+            <div class="meta-row">
+              <span>{{ clubName(event) }}</span>
+              <span>{{ event.startTime | date:'yyyy/MM/dd HH:mm' }}</span>
+              <span>{{ event.location }}</span>
+            </div>
+            <a class="btn secondary small" [routerLink]="['/clubs', event.clubId, 'events', event.id]">場次與報名</a>
           </div>
-          <div class="card-actions">
-            <a class="btn secondary small" [routerLink]="['/events', event.id]">詳情</a>
-            <button class="btn primary small" type="button" (click)="register(event)" [disabled]="data.isRegistered(event.id) || remaining(event) <= 0">
-              {{ data.isRegistered(event.id) ? '已報名' : '我要報名' }}
-            </button>
-          </div>
-        </div>
-      </article>
+        </article>
     </section>
   `,
 })
@@ -73,7 +68,7 @@ export class EventsPage {
     return event.capacity - event.currentCount;
   }
 
-  register(event: ClubEvent): void {
-    this.data.register(event.id);
+  clubName(event: ClubEvent): string {
+    return this.data.clubById(event.clubId)?.name ?? '';
   }
 }

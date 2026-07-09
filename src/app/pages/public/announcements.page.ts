@@ -3,6 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ClubDataService } from '../../services/club-data.service';
+import { Announcement } from '../../types/club.models';
 
 @Component({
   selector: 'app-announcements-page',
@@ -41,12 +42,12 @@ export class AnnouncementsPage {
   category = '全部';
 
   get categories(): string[] {
-    return [...new Set(this.data.announcements().map((item) => item.category))];
+    return [...new Set(this.data.announcements().map((item: Announcement) => item.category))];
   }
 
   get filteredAnnouncements() {
     const keyword = this.keyword.trim().toLowerCase();
-    return this.data.announcements().filter((item) => {
+    return this.data.announcements().filter((item: Announcement) => {
       const matchKeyword = !keyword || `${item.title} ${item.content}`.toLowerCase().includes(keyword);
       const matchCategory = this.category === '全部' || item.category === this.category;
       return matchKeyword && matchCategory;

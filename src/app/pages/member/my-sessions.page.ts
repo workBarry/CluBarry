@@ -1,15 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { ClubDataService } from '../../services/club-data.service';
+import { Registration } from '../../types/club.models';
 
 @Component({
-  selector: 'app-my-events-page',
+  selector: 'app-my-sessions-page',
   imports: [CommonModule],
   template: `
     <section class="page-heading">
-      <span class="eyebrow">My Events</span>
-      <h1>我的活動</h1>
-      <p>已報名、已取消與已完成活動會集中顯示在這裡。</p>
+      <span class="eyebrow">My Sessions</span>
+      <h1>我的場次</h1>
+      <p>你報名過的活動場次會集中顯示在這裡。</p>
     </section>
 
     <section class="tabs">
@@ -22,17 +23,19 @@ import { ClubDataService } from '../../services/club-data.service';
       <article class="activity-row" *ngFor="let row of filteredRows">
         <span class="avatar-box" [style.background]="row.event?.cover">{{ row.event?.title?.slice(0, 1) }}</span>
         <div>
-          <strong>{{ row.event?.title }}</strong>
-          <p>{{ row.event?.startTime | date:'yyyy/MM/dd HH:mm' }} / {{ row.event?.location }}</p>
+          <strong>{{ row.session?.title }}</strong>
+          <p>{{ row.club?.name }} / {{ row.event?.title }}</p>
+          <small>{{ row.session?.startTime | date:'yyyy/MM/dd HH:mm' }} / {{ row.session?.location }}</small>
         </div>
         <span class="status-pill">{{ statusLabel(row.registration.status) }}</span>
         <button class="btn danger small" type="button" *ngIf="row.registration.status === 'registered'" (click)="cancel(row.registration.id)">取消</button>
       </article>
+      <p class="empty" *ngIf="filteredRows.length === 0">此分頁沒有場次紀錄。</p>
     </section>
   `,
 })
-export class MyEventsPage {
-  private readonly data = inject(ClubDataService);
+export class MySessionsPage {
+  readonly data = inject(ClubDataService);
 
   status = 'registered';
   readonly tabs = [
@@ -44,8 +47,13 @@ export class MyEventsPage {
   get filteredRows() {
     return this.data
       .registrationsForCurrentUser()
-      .filter((registration) => registration.status === this.status)
-      .map((registration) => ({ registration, event: this.data.eventById(registration.eventId) }));
+      .filter((r) => r.status === this.status)
+      .map((registration) => ({
+        registration,
+        session: this.data.sessionById(registration.sessionId),
+        event: this.data.eventById(registration.eventId),
+        club: this.data.clubById(registration.clubId),
+      }));
   }
 
   statusLabel(status: string): string {
@@ -58,7 +66,7 @@ export class MyEventsPage {
     return labels[status] ?? status;
   }
 
-  cancel(id: number): void {
+  cancel(id: string): void {
     this.data.cancelRegistration(id);
   }
 }

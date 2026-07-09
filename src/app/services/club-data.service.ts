@@ -2,26 +2,34 @@ import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './auth.service';
 import { FirebaseService } from './firebase.service';
-import { announcements, events, notifications, registrations, users } from '../data/mock-club-data';
-import { Announcement, ClubEvent, ClubUser, Notification, Registration } from '../types/club.models';
+import {
+  announcements, clubs, clubMembers, events, notifications, registrations, sessions, users,
+} from '../data/mock-club-data';
+import {
+  Announcement, Club, ClubEvent, ClubMember, ClubUser, Notification, Registration, Session,
+} from '../types/club.models';
 
 @Injectable({ providedIn: 'root' })
 export class ClubDataService {
   private readonly firebase = inject(FirebaseService);
   private readonly auth = inject(AuthService);
 
+  private readonly clubState = signal<Club[]>(clubs.map((c) => ({ ...c })));
+  private readonly clubMemberState = signal<ClubMember[]>(clubMembers.map((m) => ({ ...m })));
+  private readonly sessionState = signal<Session[]>(sessions.map((s) => ({ ...s })));
   private readonly eventState = signal<ClubEvent[]>(events.map((e) => ({ ...e })));
-  private readonly registrationState = signal<Registration[]>(registrations.map((r) => ({ ...r })));
-  private readonly notificationState = signal<Notification[]>(notifications.map((n) => ({ ...n })));
-  private readonly announcementState = signal<Announcement[]>([]);
+  private readonly announcementState = signal<Announcement[]>(announcements.map((a) => ({ ...a })));
+  private readonly registrationState = signal<Registration[]>([]);
+  private readonly notificationState = signal<Notification[]>([]);
 
   readonly firebaseReady = signal(false);
+  message = '';
 
   get currentUser(): ClubUser {
     const authUser = this.auth.currentUser();
     if (!authUser) return { ...users[0] };
     return {
-      id: Number(authUser.id) || 0,
+      id: authUser.id,
       avatar: authUser.avatar,
       name: authUser.name,
       email: authUser.email,
@@ -41,13 +49,23 @@ export class ClubDataService {
 
   async syncFromFirebase(): Promise<void> {
     try {
-      const [fbEvents, fbAnnouncements] = await Promise.all([
+      const [fbClubs, fbMembers, fbEvents, fbSessions, fbAnnouncements, fbRegistrations, fbNotifications] = await Promise.all([
+        firstValueFrom(this.firebase.watchActiveClubs()),
+        firstValueFrom(this.firebase.watchClubMembersByUser(this.currentUserId)),
         firstValueFrom(this.firebase.watchPublishedEvents()),
+        firstValueFrom(this.firebase.watchSessions()),
         firstValueFrom(this.firebase.watchPublishedAnnouncements()),
+        firstValueFrom(this.firebase.watchRegistrationsByUser(this.currentUserId)),
+        firstValueFrom(this.firebase.watchNotifications(this.currentUserId)),
       ]);
 
+      if (fbClubs?.length) this.clubState.set(fbClubs as Club[]);
+      if (fbMembers?.length) this.clubMemberState.set(fbMembers as ClubMember[]);
       if (fbEvents?.length) this.eventState.set(fbEvents as ClubEvent[]);
+      if (fbSessions?.length) this.sessionState.set(fbSessions as Session[]);
       if (fbAnnouncements?.length) this.announcementState.set(fbAnnouncements as Announcement[]);
+      if (fbRegistrations) this.registrationState.set(fbRegistrations as Registration[]);
+      if (fbNotifications) this.notificationState.set(fbNotifications as Notification[]);
 
       this.firebaseReady.set(true);
     } catch {
@@ -56,55 +74,106 @@ export class ClubDataService {
     }
   }
 
-  users(): ClubUser[] {
-    return users.map((user) => ({ ...user }));
+  // --- Clubs ---
+  clubs(): Club[] {
+    return this.clubState();
   }
 
-  events(): ClubEvent[] {
-    return this.eventState();
+  clubById(id: string | null): Club | undefined {
+    return this.clubState().find((c) => c.id === id);
   }
 
-  eventById(id: number | string): ClubEvent | undefined {
-    return this.eventState().find((event) => String(event.id) === String(id));
+  myClubs(): Club[] {
+    const myIds = new Set(
+      this.clubMemberState().filter((m) => m.userId === this.currentUserId && m.status === 'active').map((m) => m.clubId),
+    );
+    return this.clubState().filter((c) => myIds.has(c.id));
   }
 
-  announcements(): Announcement[] {
-    const fb = this.announcementState();
-    if (fb.length) return fb.filter((a) => a.status === 'published');
-    return announcements.filter((announcement) => announcement.status === 'published');
+  myRoleInClub(clubId: string): ClubMember['roleInClub'] | null {
+    return this.clubMemberState().find(
+      (m) => m.clubId === clubId && m.userId === this.currentUserId && m.status === 'active',
+    )?.roleInClub ?? null;
   }
 
-  announcementById(id: number | string): Announcement | undefined {
-    return this.announcements().find((announcement) => String(announcement.id) === String(id));
-  }
-
-  registrationsForCurrentUser(): Registration[] {
-    const userId = this.currentUserId;
-    return this.registrationState().filter((registration) => String(registration.userId) === userId);
-  }
-
-  notificationsForCurrentUser(): Notification[] {
-    const userId = this.currentUserId;
-    return this.notificationState().filter((notification) => String(notification.userId) === userId);
-  }
-
-  isRegistered(eventId: number | string): boolean {
-    return this.registrationsForCurrentUser().some(
-      (registration) => String(registration.eventId) === String(eventId) && registration.status === 'registered',
+  isClubMember(clubId: string): boolean {
+    return this.clubMemberState().some(
+      (m) => m.clubId === clubId && m.userId === this.currentUserId && m.status === 'active',
     );
   }
 
-  async register(eventId: number | string): Promise<void> {
-    if (this.isRegistered(eventId)) return;
+  clubMembersOf(clubId: string): ClubMember[] {
+    return this.clubMemberState().filter((m) => m.clubId === clubId);
+  }
 
-    const event = this.eventById(eventId);
-    if (!event || event.currentCount >= event.capacity) return;
+  // --- Events ---
+  eventsByClub(clubId: string): ClubEvent[] {
+    return this.eventState().filter((e) => e.clubId === clubId && e.status === 'published');
+  }
+
+  events(): ClubEvent[] {
+    return this.eventState().filter((e) => e.status === 'published');
+  }
+
+  eventById(id: string | null): ClubEvent | undefined {
+    return this.eventState().find((e) => String(e.id) === String(id));
+  }
+
+  // --- Sessions ---
+  sessionsByEvent(eventId: string): Session[] {
+    return this.sessionState().filter((s) => s.eventId === eventId);
+  }
+
+  sessionById(id: string | null): Session | undefined {
+    return this.sessionState().find((s) => String(s.id) === String(id));
+  }
+
+  canRegister(session: Session): boolean {
+    return session.openToNonMember || this.isClubMember(session.clubId);
+  }
+
+  // --- Announcements ---
+  announcements(): Announcement[] {
+    return this.announcementState().filter((a) => a.status === 'published');
+  }
+
+  announcementsByClub(clubId: string): Announcement[] {
+    return this.announcementState().filter((a) => a.clubId === clubId && a.status === 'published');
+  }
+
+  announcementById(id: string | null): Announcement | undefined {
+    return this.announcementState().find((a) => String(a.id) === String(id));
+  }
+
+  // --- Registrations ---
+  registrationsForCurrentUser(): Registration[] {
+    return this.registrationState();
+  }
+
+  isRegistered(sessionId: string): boolean {
+    return this.registrationState().some(
+      (r) => String(r.sessionId) === String(sessionId) && r.status === 'registered',
+    );
+  }
+
+  async register(session: Session): Promise<void> {
+    if (this.isRegistered(session.id)) return;
+    if (!this.canRegister(session)) {
+      this.message = '此場次僅開放給社員參加。';
+      return;
+    }
+    if (session.currentCount >= session.capacity) {
+      this.message = '該場次已額滿。';
+      return;
+    }
 
     const userId = this.currentUserId;
     const newRegistration: Registration = {
-      id: Date.now(),
-      userId: Number(userId),
-      eventId: Number(eventId),
+      id: Date.now().toString(),
+      userId,
+      clubId: session.clubId,
+      eventId: session.eventId,
+      sessionId: session.id,
       paymentStatus: 'unpaid',
       checkIn: false,
       status: 'registered',
@@ -112,44 +181,41 @@ export class ClubDataService {
     };
 
     this.registrationState.update((items) => [...items, newRegistration]);
-    this.eventState.update((items) =>
-      items.map((item) => (String(item.id) === String(eventId) ? { ...item, currentCount: item.currentCount + 1 } : item)),
+    this.sessionState.update((items) =>
+      items.map((s) => (s.id === session.id ? { ...s, currentCount: s.currentCount + 1 } : s)),
     );
-
-    const newNotification: Notification = {
-      id: Date.now() + 1,
-      userId: Number(userId),
-      title: '報名成功',
-      content: `你已完成「${event.title}」報名。`,
-      type: 'event',
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-    this.notificationState.update((items) => [newNotification, ...items]);
+    this.message = `你已報名「${session.title}」。`;
 
     if (this.firebaseReady()) {
       try {
         await this.firebase.createRegistration(newRegistration);
-        await this.firebase.createNotification(newNotification);
       } catch (e) {
         console.error('Firebase persist failed:', e);
       }
     }
   }
 
-  cancelRegistration(registrationId: number | string): void {
+  cancelRegistration(registrationId: string): void {
     this.registrationState.update((items) => {
       const reg = items.find((r) => String(r.id) === String(registrationId));
       if (!reg || reg.status !== 'registered') return items;
-      this.eventState.update((evts) =>
-        evts.map((e) =>
-          String(e.id) === String(reg.eventId) ? { ...e, currentCount: Math.max(0, e.currentCount - 1) } : e,
-        ),
+      this.sessionState.update((s) =>
+        s.map((x) => (x.id === reg.sessionId ? { ...x, currentCount: Math.max(0, x.currentCount - 1) } : x)),
       );
       if (this.firebaseReady()) {
-        this.firebase.updateRegistration(String(registrationId), { status: 'cancelled' });
+        this.firebase.updateRegistration(registrationId, { status: 'cancelled' });
       }
-      return items.map((r) => (String(r.id) === String(registrationId) ? { ...r, status: 'cancelled' as const } : r));
+      return items.map((r) => (String(r.id) === String(registrationId) ? { ...r, status: 'cancelled' } : r));
     });
+  }
+
+  // --- Notifications ---
+  notificationsForCurrentUser(): Notification[] {
+    return this.notificationState();
+  }
+
+  markNotificationRead(id: string): void {
+    this.notificationState.update((items) => items.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    if (this.firebaseReady()) this.firebase.markNotificationRead(id);
   }
 }

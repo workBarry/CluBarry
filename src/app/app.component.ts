@@ -16,12 +16,15 @@ export class AppComponent implements OnInit {
 
   readonly navItems = [
     { label: '首頁', path: '/', exact: true },
+    { label: '社團', path: '/', exact: true },
     { label: '公告', path: '/announcements' },
     { label: '活動', path: '/events' },
   ];
 
   readonly drawerItems = [
-    { label: '我的活動', path: '/my-events' },
+    { label: '我的社團', path: '/my-clubs' },
+    { label: '我的場次', path: '/my-sessions' },
+    { label: '開立社團', path: '/create-club' },
     { label: '通知', path: '/notifications' },
     { label: '個人中心', path: '/profile' },
   ];

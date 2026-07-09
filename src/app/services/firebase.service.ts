@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { Announcement, ClubEvent, ClubUser, Notification, Registration } from '../types/club.models';
+import { Announcement, Club, ClubEvent, ClubMember, ClubUser, Notification, Registration, Session } from '../types/club.models';
 
 @Injectable({ providedIn: 'root' })
 export class FirebaseService {
@@ -91,6 +91,47 @@ export class FirebaseService {
     return setDoc(doc(this.firestore, `users/${id}`), data, { merge: true });
   }
 
+  // --- Clubs ---
+  watchActiveClubs(): Observable<Club[]> {
+    const q = query(
+      collection(this.firestore, 'clubs'),
+      where('status', '==', 'active'),
+      orderBy('createdAt', 'desc'),
+    );
+    return this.snapshotObservable<Club>(q);
+  }
+
+  getClub(id: string): Observable<Club | undefined> {
+    return this.docObservable<Club>(doc(this.firestore, `clubs/${id}`));
+  }
+
+  createClub(data: Omit<Club, 'id'>): Promise<DocumentReference> {
+    return addDoc(collection(this.firestore, 'clubs'), { ...data, createdAt: Timestamp.now() });
+  }
+
+  updateClub(id: string, data: Partial<Club>): Promise<void> {
+    return setDoc(doc(this.firestore, `clubs/${id}`), data, { merge: true });
+  }
+
+  // --- Club Members ---
+  watchClubMembers(clubId: string): Observable<ClubMember[]> {
+    const q = query(collection(this.firestore, 'clubMembers'), where('clubId', '==', clubId));
+    return this.snapshotObservable<ClubMember>(q);
+  }
+
+  watchClubMembersByUser(userId: string): Observable<ClubMember[]> {
+    const q = query(collection(this.firestore, 'clubMembers'), where('userId', '==', userId));
+    return this.snapshotObservable<ClubMember>(q);
+  }
+
+  createClubMember(data: Omit<ClubMember, 'id'>): Promise<DocumentReference> {
+    return addDoc(collection(this.firestore, 'clubMembers'), { ...data, joinedAt: Timestamp.now() });
+  }
+
+  updateClubMember(id: string, data: Partial<ClubMember>): Promise<void> {
+    return setDoc(doc(this.firestore, `clubMembers/${id}`), data, { merge: true });
+  }
+
   // --- Events ---
   watchPublishedEvents(): Observable<ClubEvent[]> {
     const q = query(
@@ -101,8 +142,32 @@ export class FirebaseService {
     return this.snapshotObservable<ClubEvent>(q);
   }
 
+  watchEventsByClub(clubId: string): Observable<ClubEvent[]> {
+    const q = query(
+      collection(this.firestore, 'events'),
+      where('clubId', '==', clubId),
+      where('status', '==', 'published'),
+      orderBy('startTime', 'asc'),
+    );
+    return this.snapshotObservable<ClubEvent>(q);
+  }
+
   getEvent(id: string): Observable<ClubEvent | undefined> {
     return this.docObservable<ClubEvent>(doc(this.firestore, `events/${id}`));
+  }
+
+  // --- Sessions ---
+  watchSessionsByEvent(eventId: string): Observable<Session[]> {
+    const q = query(collection(this.firestore, 'sessions'), where('eventId', '==', eventId));
+    return this.snapshotObservable<Session>(q);
+  }
+
+  getSession(id: string): Observable<Session | undefined> {
+    return this.docObservable<Session>(doc(this.firestore, `sessions/${id}`));
+  }
+
+  watchSessions(): Observable<Session[]> {
+    return this.snapshotObservable<Session>(collection(this.firestore, 'sessions'));
   }
 
   // --- Registrations ---
@@ -113,6 +178,11 @@ export class FirebaseService {
 
   watchRegistrationsByEvent(eventId: string): Observable<Registration[]> {
     const q = query(collection(this.firestore, 'registrations'), where('eventId', '==', eventId));
+    return this.snapshotObservable<Registration>(q);
+  }
+
+  watchRegistrationsBySession(sessionId: string): Observable<Registration[]> {
+    const q = query(collection(this.firestore, 'registrations'), where('sessionId', '==', sessionId));
     return this.snapshotObservable<Registration>(q);
   }
 
@@ -128,6 +198,16 @@ export class FirebaseService {
   watchPublishedAnnouncements(): Observable<Announcement[]> {
     const q = query(
       collection(this.firestore, 'announcements'),
+      where('status', '==', 'published'),
+      orderBy('createdAt', 'desc'),
+    );
+    return this.snapshotObservable<Announcement>(q);
+  }
+
+  watchAnnouncementsByClub(clubId: string): Observable<Announcement[]> {
+    const q = query(
+      collection(this.firestore, 'announcements'),
+      where('clubId', '==', clubId),
       where('status', '==', 'published'),
       orderBy('createdAt', 'desc'),
     );
