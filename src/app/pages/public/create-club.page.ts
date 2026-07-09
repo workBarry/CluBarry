@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ClubDataService } from '../../services/club-data.service';
-import { FirebaseService } from '../../services/firebase.service';
 
 @Component({
   selector: 'app-create-club-page',
@@ -34,7 +33,6 @@ import { FirebaseService } from '../../services/firebase.service';
 export class CreateClubPage {
   readonly auth = inject(AuthService);
   private readonly data = inject(ClubDataService);
-  private readonly firebase = inject(FirebaseService);
   private readonly router = inject(Router);
 
   name = '';
@@ -57,18 +55,10 @@ export class CreateClubPage {
       createdBy: uid,
       createdAt: new Date().toISOString(),
     };
-    if (this.data.firebaseReady()) {
-      try {
-        await this.firebase.createClub(club);
-        this.message = '已提交，等待平台審核。';
-        this.router.navigate(['/my-clubs']);
-        return;
-      } catch (e) {
-        this.message = '提交失敗，請稍後再試。';
-        return;
-      }
-    }
-    this.message = '已提交（離線模式），等待平台審核。';
+    await this.data.createClub(club, uid);
+    this.message = this.data.firebaseReady()
+      ? '已提交，等待平台審核。'
+      : '已提交（離線模式），等待平台審核。';
     this.router.navigate(['/my-clubs']);
   }
 

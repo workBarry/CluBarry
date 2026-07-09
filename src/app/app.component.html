@@ -8,12 +8,6 @@
       </span>
     </a>
 
-    <nav class="main-nav" aria-label="主要導覽">
-      <a *ngFor="let item of navItems" [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="item.exact ? { exact: true } : { exact: false }">
-        {{ item.label }}
-      </a>
-    </nav>
-
     <div class="user-chip" *ngIf="auth.currentUser() as user; else loginLink">
       <a class="bell-icon" routerLink="/notifications" title="通知">🔔</a>
       <span (click)="toggleDrawer()" style="cursor:pointer">{{ user.avatar }}</span>
@@ -29,6 +23,11 @@
       </div>
     </ng-template>
   </header>
+  <nav class="main-nav" aria-label="主要導覽">
+    <a *ngFor="let item of navItems" [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="item.exact ? { exact: true } : { exact: false }">
+      {{ item.label }}
+    </a>
+  </nav>
 
   <main>
     <router-outlet />

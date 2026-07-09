@@ -93,11 +93,7 @@ export class FirebaseService {
 
   // --- Clubs ---
   watchActiveClubs(): Observable<Club[]> {
-    const q = query(
-      collection(this.firestore, 'clubs'),
-      where('status', '==', 'active'),
-      orderBy('createdAt', 'desc'),
-    );
+    const q = query(collection(this.firestore, 'clubs'), where('status', '==', 'active'));
     return this.snapshotObservable<Club>(q);
   }
 
@@ -137,7 +133,6 @@ export class FirebaseService {
     const q = query(
       collection(this.firestore, 'events'),
       where('status', '==', 'published'),
-      orderBy('startTime', 'asc'),
     );
     return this.snapshotObservable<ClubEvent>(q);
   }
@@ -147,7 +142,6 @@ export class FirebaseService {
       collection(this.firestore, 'events'),
       where('clubId', '==', clubId),
       where('status', '==', 'published'),
-      orderBy('startTime', 'asc'),
     );
     return this.snapshotObservable<ClubEvent>(q);
   }
@@ -199,7 +193,6 @@ export class FirebaseService {
     const q = query(
       collection(this.firestore, 'announcements'),
       where('status', '==', 'published'),
-      orderBy('createdAt', 'desc'),
     );
     return this.snapshotObservable<Announcement>(q);
   }
@@ -209,7 +202,6 @@ export class FirebaseService {
       collection(this.firestore, 'announcements'),
       where('clubId', '==', clubId),
       where('status', '==', 'published'),
-      orderBy('createdAt', 'desc'),
     );
     return this.snapshotObservable<Announcement>(q);
   }
@@ -223,7 +215,6 @@ export class FirebaseService {
     const q = query(
       collection(this.firestore, 'notifications'),
       where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
     );
     return this.snapshotObservable<Notification>(q);
   }

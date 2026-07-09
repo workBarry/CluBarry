@@ -14,6 +14,32 @@ export class ClubDataService {
   private readonly firebase = inject(FirebaseService);
   private readonly auth = inject(AuthService);
 
+  async createClub(club: Omit<Club, 'id'>, userId: string): Promise<void> {
+    const localId = `c_${Date.now()}`;
+    const local: Club = { ...club, id: localId };
+    const member: ClubMember = {
+      id: `cm_${Date.now()}`,
+      userId,
+      clubId: localId,
+      roleInClub: 'President',
+      status: 'active',
+      joinedAt: new Date().toISOString(),
+    };
+    this.clubState.update((items) => [local, ...items]);
+    this.clubMemberState.update((items) => [member, ...items]);
+
+    if (this.firebaseReady()) {
+      try {
+        const ref = await this.firebase.createClub(club);
+        const id = (ref as { id: string }).id;
+        this.clubState.update((items) => items.map((c) => (c.id === localId ? { ...c, id } : c)));
+        await this.firebase.createClubMember({ ...member, clubId: id });
+      } catch (e) {
+        console.error('Firebase createClub failed:', e);
+      }
+    }
+  }
+
   private readonly clubState = signal<Club[]>(clubs.map((c) => ({ ...c })));
   private readonly clubMemberState = signal<ClubMember[]>(clubMembers.map((m) => ({ ...m })));
   private readonly sessionState = signal<Session[]>(sessions.map((s) => ({ ...s })));
@@ -76,7 +102,7 @@ export class ClubDataService {
 
   // --- Clubs ---
   clubs(): Club[] {
-    return this.clubState();
+    return [...this.clubState()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   clubById(id: string | null): Club | undefined {
@@ -108,11 +134,15 @@ export class ClubDataService {
 
   // --- Events ---
   eventsByClub(clubId: string): ClubEvent[] {
-    return this.eventState().filter((e) => e.clubId === clubId && e.status === 'published');
+    return this.eventState()
+      .filter((e) => e.clubId === clubId && e.status === 'published')
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
   events(): ClubEvent[] {
-    return this.eventState().filter((e) => e.status === 'published');
+    return this.eventState()
+      .filter((e) => e.status === 'published')
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
   }
 
   eventById(id: string | null): ClubEvent | undefined {
@@ -134,7 +164,9 @@ export class ClubDataService {
 
   // --- Announcements ---
   announcements(): Announcement[] {
-    return this.announcementState().filter((a) => a.status === 'published');
+    return this.announcementState()
+      .filter((a) => a.status === 'published')
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   announcementsByClub(clubId: string): Announcement[] {
