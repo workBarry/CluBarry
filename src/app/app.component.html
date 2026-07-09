@@ -1,0 +1,36 @@
+<div class="site-shell">
+  <header class="site-header">
+    <a class="brand" routerLink="/">
+      <span class="brand-mark">CM</span>
+      <span>
+        <strong>ClubWeb</strong>
+        <small>社團前台</small>
+      </span>
+    </a>
+
+    <nav class="main-nav" aria-label="主要導覽">
+      <a *ngFor="let item of navItems" [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="item.exact ? { exact: true } : { exact: false }">
+        {{ item.label }}
+      </a>
+    </nav>
+
+    <div class="user-chip">
+      <ng-container *ngIf="auth.currentUser() as user; else loginLink">
+        <span>{{ user.avatar }}</span>
+        <div>
+          <strong>{{ user.name }}</strong>
+          <small>{{ user.role }}</small>
+        </div>
+        <a class="btn ghost small" (click)="auth.logout()" style="cursor:pointer;margin-left:0.5rem">登出</a>
+      </ng-container>
+      <ng-template #loginLink>
+        <a class="btn primary small" routerLink="/login">登入</a>
+        <a class="btn secondary small" routerLink="/register">註冊</a>
+      </ng-template>
+    </div>
+  </header>
+
+  <main>
+    <router-outlet />
+  </main>
+</div>
