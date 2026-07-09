@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ClubDataService } from '../../services/club-data.service';
+import { ClubApiClientService } from '../../services/club-api-client.service';
 
 @Component({
   selector: 'app-create-club-page',
@@ -24,7 +24,7 @@ import { ClubDataService } from '../../services/club-data.service';
         <p class="notice" *ngIf="message">{{ message }}</p>
         <div class="modal-actions">
           <button class="btn ghost" type="button" (click)="back()">取消</button>
-          <button class="btn primary" type="submit" [disabled]="!name.trim()">提交審核</button>
+          <button class="btn primary" type="submit" [disabled]="!name.trim() || loading">提交審核</button>
         </div>
       </form>
     </section>
@@ -32,7 +32,7 @@ import { ClubDataService } from '../../services/club-data.service';
 })
 export class CreateClubPage {
   readonly auth = inject(AuthService);
-  private readonly data = inject(ClubDataService);
+  private readonly api = inject(ClubApiClientService);
   private readonly router = inject(Router);
 
   name = '';
@@ -40,11 +40,11 @@ export class CreateClubPage {
   tags = '';
   description = '';
   message = '';
+  loading = false;
 
   async create(): Promise<void> {
     const uid = this.auth.currentUser()?.id ?? '0';
     const club = {
-      id: '',
       name: this.name.trim(),
       logo: this.name.trim().charAt(0),
       cover: 'linear-gradient(135deg, #2563eb, #14b8a6)',
@@ -55,11 +55,19 @@ export class CreateClubPage {
       createdBy: uid,
       createdAt: new Date().toISOString(),
     };
-    await this.data.createClub(club, uid);
-    this.message = this.data.firebaseReady()
-      ? '已提交，等待平台審核。'
-      : '已提交（離線模式），等待平台審核。';
-    this.router.navigate(['/my-clubs']);
+
+    this.loading = true;
+    this.message = '';
+    try {
+      await this.api.createClub({ club, presidentId: uid });
+      this.message = '已提交，等待平台審核。';
+      this.router.navigate(['/my-clubs']);
+    } catch (err: any) {
+      console.error('建立社團失敗:', err);
+      this.message = err?.message ?? '提交失敗，請稍後再試。';
+    } finally {
+      this.loading = false;
+    }
   }
 
   back(): void {

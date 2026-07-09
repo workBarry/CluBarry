@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ClubDataService } from '../../services/club-data.service';
-import { Club } from '../../types/club.models';
+import { ClubApiClientService } from '../../services/club-api-client.service';
+import { MyClubResponse } from '../../services/club-api-client.service';
 
 @Component({
   selector: 'app-my-clubs-page',
@@ -15,7 +15,7 @@ import { Club } from '../../types/club.models';
     </section>
 
     <section class="card-grid">
-      <article class="club-card" *ngFor="let row of rows">
+      <article class="club-card" *ngFor="let row of clubs$ | async">
         <div class="club-cover" [style.background]="row.club.cover">
           <span class="club-logo">{{ row.club.logo }}</span>
         </div>
@@ -26,7 +26,7 @@ import { Club } from '../../types/club.models';
           <a class="btn small" [routerLink]="['/clubs', row.club.id]">進入社團</a>
         </div>
       </article>
-      <p class="empty" *ngIf="rows.length === 0">你還沒有加入任何社團。</p>
+      <p class="empty" *ngIf="(clubs$ | async)?.length === 0">你還沒有加入任何社團。</p>
     </section>
 
     <section class="section">
@@ -35,12 +35,7 @@ import { Club } from '../../types/club.models';
   `,
 })
 export class MyClubsPage {
-  readonly data = inject(ClubDataService);
+  readonly api = inject(ClubApiClientService);
 
-  get rows(): { club: Club; role: string }[] {
-    return this.data.myClubs().map((club) => ({
-      club,
-      role: this.data.myRoleInClub(club.id) ?? 'Member',
-    }));
-  }
+  readonly clubs$ = this.api.getMyClubs();
 }
