@@ -38,8 +38,11 @@ import { AuthService } from '../../services/auth.service';
           <input type="checkbox" name="remember" [(ngModel)]="remember" />
           Remember Me
         </label>
-        <button class="btn primary" type="submit">登入</button>
+        <button class="btn primary" type="submit" [disabled]="auth.loading() || !email || !password">
+          {{ auth.loading() ? '登入中...' : '登入' }}
+        </button>
         <p class="form-message" *ngIf="auth.error()">{{ auth.error() }}</p>
+        <p class="form-message success" *ngIf="auth.success()">{{ auth.success() }}</p>
         <a routerLink="/register">還沒有帳號？前往註冊</a>
       </form>
     </section>
@@ -52,6 +55,7 @@ import { AuthService } from '../../services/auth.service';
         font-size: 0.82rem; color: #65758b;
       }
       .mock-hint strong { color: #166534; }
+      .success { color: #166534; }
     `,
   ],
 })

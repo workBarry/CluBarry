@@ -18,7 +18,7 @@ import { SessionDetailPage } from './pages/public/session-detail.page';
 export const routes: Routes = [
   { path: '', component: HomePage, title: 'ClubWeb - 首頁' },
   { path: 'login', component: LoginPage, title: 'ClubWeb - 登入', canActivate: [loginGuard] },
-  { path: 'register', component: RegisterPage, title: 'ClubWeb - 註冊' },
+  { path: 'register', component: RegisterPage, title: 'ClubWeb - 註冊', canActivate: [loginGuard] },
   { path: 'announcements', component: AnnouncementsPage, title: 'ClubWeb - 公告' },
   { path: 'announcements/:id', component: AnnouncementDetailPage, title: 'ClubWeb - 公告詳情' },
   { path: 'events', component: EventsPage, title: 'ClubWeb - 活動' },

@@ -18,15 +18,15 @@ import { AuthService } from '../../services/auth.service';
       <form class="form-card two-cols" (ngSubmit)="submit()">
         <label>
           姓名
-          <input name="name" [(ngModel)]="form.name" required />
+          <input name="name" [(ngModel)]="form.name" autocomplete="name" required />
         </label>
         <label>
           Email
-          <input type="email" name="email" [(ngModel)]="form.email" required />
+          <input type="email" name="email" [(ngModel)]="form.email" autocomplete="email" required />
         </label>
         <label>
           學號
-          <input name="studentId" [(ngModel)]="form.studentId" required />
+          <input name="studentId" [(ngModel)]="form.studentId" autocomplete="off" required />
         </label>
         <label>
           系級
@@ -34,14 +34,28 @@ import { AuthService } from '../../services/auth.service';
         </label>
         <label>
           密碼
-          <input type="password" name="password" [(ngModel)]="form.password" required />
+          <input
+            type="password"
+            name="password"
+            [(ngModel)]="form.password"
+            autocomplete="new-password"
+            minlength="6"
+            required
+          />
         </label>
         <label>
           確認密碼
-          <input type="password" name="confirmPassword" [(ngModel)]="form.confirmPassword" required />
+          <input
+            type="password"
+            name="confirmPassword"
+            [(ngModel)]="form.confirmPassword"
+            autocomplete="new-password"
+            minlength="6"
+            required
+          />
         </label>
-        <button class="btn primary full" type="submit" [disabled]="form.password !== form.confirmPassword || !form.name">
-          {{ form.password !== form.confirmPassword ? '密碼不一致' : '送出註冊' }}
+        <button class="btn primary full" type="submit" [disabled]="auth.loading() || !canSubmit">
+          {{ auth.loading() ? '建立帳號中...' : form.password !== form.confirmPassword ? '密碼不一致' : '送出註冊' }}
         </button>
         <p class="form-message full" *ngIf="auth.error()">{{ auth.error() }}</p>
         <a class="full" routerLink="/login">已有帳號？前往登入</a>
@@ -61,12 +75,21 @@ export class RegisterPage {
     confirmPassword: '',
   };
 
-  submit(): void {
+  get canSubmit(): boolean {
+    return !!this.form.name.trim()
+      && !!this.form.email.trim()
+      && !!this.form.studentId.trim()
+      && !!this.form.department.trim()
+      && this.form.password.length >= 6
+      && this.form.password === this.form.confirmPassword;
+  }
+
+  async submit(): Promise<void> {
     if (this.form.password !== this.form.confirmPassword) return;
-    this.auth.register(this.form.email, this.form.password, {
-      name: this.form.name,
-      studentId: this.form.studentId,
-      department: this.form.department,
+    await this.auth.register(this.form.email.trim(), this.form.password, {
+      name: this.form.name.trim(),
+      studentId: this.form.studentId.trim(),
+      department: this.form.department.trim(),
     });
   }
 }

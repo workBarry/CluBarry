@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import {
   Auth, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signOut, onAuthStateChanged, User as FirebaseUser,
+  deleteUser as deleteFirebaseUser, signOut, onAuthStateChanged, User as FirebaseUser,
 } from 'firebase/auth';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -33,12 +33,24 @@ export class FirebaseService {
     });
   }
 
+  private normalizeValue(val: any): any {
+    if (val === null || val === undefined) return val;
+    if (val instanceof Timestamp) return val.toDate().toISOString();
+    if (Array.isArray(val)) return val.map((v) => this.normalizeValue(v));
+    if (typeof val === 'object') {
+      const out: Record<string, any> = {};
+      for (const key of Object.keys(val)) out[key] = this.normalizeValue(val[key]);
+      return out;
+    }
+    return val;
+  }
+
   private snapshotObservable<T>(ref: any): Observable<T[]> {
     return new Observable((observer) => {
       const unsub = onSnapshot(ref, (snap: any) => {
         this.zone.run(() => {
           const items: T[] = [];
-          snap.forEach((d: any) => items.push({ id: d.id, ...d.data() } as T));
+          snap.forEach((d: any) => items.push({ id: d.id, ...this.normalizeValue(d.data()) } as T));
           observer.next(items);
         });
       }, (err: any) => this.zone.run(() => observer.error(err)));
@@ -50,7 +62,7 @@ export class FirebaseService {
     return new Observable((observer) => {
       const unsub = onSnapshot(ref, (snap: any) => {
         this.zone.run(() => {
-          observer.next(snap.exists() ? ({ id: snap.id, ...snap.data() } as T) : undefined);
+          observer.next(snap.exists() ? ({ id: snap.id, ...this.normalizeValue(snap.data()) } as T) : undefined);
         });
       }, (err: any) => this.zone.run(() => observer.error(err)));
       return { unsubscribe: unsub };
@@ -62,8 +74,23 @@ export class FirebaseService {
     return signInWithEmailAndPassword(this.auth, email, password).then((cred) => cred.user);
   }
 
-  register(email: string, password: string): Promise<FirebaseUser> {
-    return createUserWithEmailAndPassword(this.auth, email, password).then((cred) => cred.user);
+  async register(
+    email: string,
+    password: string,
+    profile: Omit<ClubUser, 'id' | 'email' | 'createdAt'>,
+  ): Promise<FirebaseUser> {
+    const credential = await createUserWithEmailAndPassword(this.auth, email, password);
+    try {
+      await setDoc(doc(this.firestore, `users/${credential.user.uid}`), {
+        ...profile,
+        email,
+        createdAt: Timestamp.now(),
+      });
+      return credential.user;
+    } catch (error) {
+      await deleteFirebaseUser(credential.user);
+      throw error;
+    }
   }
 
   logout(): Promise<void> {
@@ -81,10 +108,6 @@ export class FirebaseService {
 
   createUser(data: Omit<ClubUser, 'id'>): Promise<DocumentReference> {
     return addDoc(collection(this.firestore, 'users'), { ...data, createdAt: Timestamp.now() });
-  }
-
-  setUser(id: string, data: Omit<ClubUser, 'id'>): Promise<void> {
-    return setDoc(doc(this.firestore, `users/${id}`), { ...data, createdAt: Timestamp.now() });
   }
 
   updateUser(id: string, data: Partial<ClubUser>): Promise<void> {

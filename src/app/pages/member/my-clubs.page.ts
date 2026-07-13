@@ -1,8 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ClubApiClientService } from '../../services/club-api-client.service';
-import { MyClubResponse } from '../../services/club-api-client.service';
+import { combineLatest, of } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
+import { AuthService } from '../../services/auth.service';
+import { FirebaseService } from '../../services/firebase.service';
+import { Club, RoleInClub } from '../../types/club.models';
+
+interface ClubRow {
+  club: Club;
+  role: RoleInClub;
+}
 
 @Component({
   selector: 'app-my-clubs-page',
@@ -35,7 +43,19 @@ import { MyClubResponse } from '../../services/club-api-client.service';
   `,
 })
 export class MyClubsPage {
-  readonly api = inject(ClubApiClientService);
+  private readonly auth = inject(AuthService);
+  private readonly firebase = inject(FirebaseService);
 
-  readonly clubs$ = this.api.getMyClubs();
+  readonly clubs$ = this.firebase.watchClubMembersByUser(this.auth.currentUser()?.id ?? '').pipe(
+    switchMap((members) => {
+      if (!members.length) return of<ClubRow[]>([]);
+      return combineLatest(
+        members.map((m) =>
+          this.firebase.getClub(m.clubId).pipe(
+            map((club): ClubRow | null => (club ? { club, role: m.roleInClub } : null)),
+          ),
+        ),
+      ).pipe(map((results) => results.filter((r): r is ClubRow => r !== null)));
+    }),
+  );
 }

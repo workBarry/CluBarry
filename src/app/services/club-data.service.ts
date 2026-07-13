@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { AuthService } from './auth.service';
 import { FirebaseService } from './firebase.service';
 import {
@@ -17,6 +17,7 @@ import {
 export class ClubDataService {
   private readonly firebase = inject(FirebaseService);
   private readonly auth = inject(AuthService);
+  private subscriptions?: Subscription;
 
   private readonly clubState = signal<Club[]>([]);
   private readonly clubMemberState = signal<ClubMember[]>([]);
@@ -52,39 +53,50 @@ export class ClubDataService {
     return this.auth.currentUser()?.id ?? '0';
   }
 
-  async syncFromFirebase(): Promise<void> {
-    try {
-      const [
-        fbClubs,
-        fbClubMembers,
-        fbSessions,
-        fbEvents,
-        fbAnnouncements,
-        fbRegistrations,
-        fbNotifications,
-      ] = await Promise.all([
-        firstValueFrom(this.firebase.watchActiveClubs()),
-        firstValueFrom(this.firebase.watchClubMembersByUser(this.currentUserId)),
-        firstValueFrom(this.firebase.watchSessions()),
-        firstValueFrom(this.firebase.watchPublishedEvents()),
-        firstValueFrom(this.firebase.watchPublishedAnnouncements()),
-        firstValueFrom(this.firebase.watchRegistrationsByUser(this.currentUserId)),
-        firstValueFrom(this.firebase.watchNotifications(this.currentUserId)),
-      ]);
+  startSync(): void {
+    if (this.subscriptions && !this.subscriptions.closed) return;
+    this.subscriptions = new Subscription();
+    this.subscriptions.add(this.firebase.watchActiveClubs().subscribe({
+      next: (items) => this.clubState.set(items as Club[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchClubMembersByUser(this.currentUserId).subscribe({
+      next: (items) => this.clubMemberState.set(items as ClubMember[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchSessions().subscribe({
+      next: (items) => this.sessionState.set(items as Session[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchPublishedEvents().subscribe({
+      next: (items) => this.eventState.set(items as ClubEvent[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchPublishedAnnouncements().subscribe({
+      next: (items) => this.announcementState.set(items as Announcement[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchRegistrationsByUser(this.currentUserId).subscribe({
+      next: (items) => this.registrationState.set(items as Registration[]),
+      error: () => {},
+    }));
+    this.subscriptions.add(this.firebase.watchNotifications(this.currentUserId).subscribe({
+      next: (items) => this.notificationState.set(items as Notification[]),
+      error: () => {},
+    }));
+    this.firebaseReady.set(true);
+  }
 
-      if (fbClubs?.length) this.clubState.set(fbClubs as Club[]);
-      if (fbClubMembers?.length) this.clubMemberState.set(fbClubMembers as ClubMember[]);
-      if (fbSessions?.length) this.sessionState.set(fbSessions as Session[]);
-      if (fbEvents?.length) this.eventState.set(fbEvents as ClubEvent[]);
-      if (fbAnnouncements?.length) this.announcementState.set(fbAnnouncements as Announcement[]);
-      if (fbRegistrations?.length) this.registrationState.set(fbRegistrations as Registration[]);
-      if (fbNotifications?.length) this.notificationState.set(fbNotifications as Notification[]);
-
-      this.firebaseReady.set(true);
-    } catch (e) {
-      console.warn('Firebase not configured, using mock data');
-      this.firebaseReady.set(false);
-    }
+  stopSync(): void {
+    this.subscriptions?.unsubscribe();
+    this.subscriptions = undefined;
+    this.clubState.set([]);
+    this.clubMemberState.set([]);
+    this.sessionState.set([]);
+    this.eventState.set([]);
+    this.announcementState.set([]);
+    this.registrationState.set([]);
+    this.notificationState.set([]);
   }
 
   // --- Clubs ---

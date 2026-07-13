@@ -32,7 +32,7 @@ export class AppComponent implements OnInit {
   drawerOpen = false;
 
   ngOnInit(): void {
-    this.data.syncFromFirebase();
+    this.data.startSync();
   }
 
   toggleDrawer(): void {

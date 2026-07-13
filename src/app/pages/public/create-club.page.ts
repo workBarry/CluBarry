@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ClubApiClientService } from '../../services/club-api-client.service';
+import { FirebaseService } from '../../services/firebase.service';
 
 @Component({
   selector: 'app-create-club-page',
@@ -32,7 +32,7 @@ import { ClubApiClientService } from '../../services/club-api-client.service';
 })
 export class CreateClubPage {
   readonly auth = inject(AuthService);
-  private readonly api = inject(ClubApiClientService);
+  private readonly firebase = inject(FirebaseService);
   private readonly router = inject(Router);
 
   name = '';
@@ -43,7 +43,12 @@ export class CreateClubPage {
   loading = false;
 
   async create(): Promise<void> {
-    const uid = this.auth.currentUser()?.id ?? '0';
+    const uid = this.auth.currentUser()?.id;
+    if (!uid) {
+      this.message = '請先登入。';
+      return;
+    }
+
     const club = {
       name: this.name.trim(),
       logo: this.name.trim().charAt(0),
@@ -59,7 +64,14 @@ export class CreateClubPage {
     this.loading = true;
     this.message = '';
     try {
-      await this.api.createClub({ club, presidentId: uid });
+      const ref = await this.firebase.createClub(club);
+      await this.firebase.createClubMember({
+        clubId: ref.id,
+        userId: uid,
+        roleInClub: 'President',
+        status: 'active',
+        joinedAt: new Date().toISOString(),
+      });
       this.message = '已提交，等待平台審核。';
       this.router.navigate(['/my-clubs']);
     } catch (err: any) {
