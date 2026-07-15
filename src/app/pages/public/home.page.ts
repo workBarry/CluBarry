@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ClubDataService } from '../../services/club-data.service';
 import { Club, ClubEvent } from '../../types/club.models';
@@ -61,25 +61,28 @@ import { Club, ClubEvent } from '../../types/club.models';
       <div class="section-heading">
         <div>
           <span class="eyebrow">Events</span>
-          <h2>近期活動</h2>
+          <h2>本月活動</h2>
         </div>
         <a routerLink="/events">探索活動</a>
       </div>
-      <div class="card-grid">
-        <article class="event-card" *ngFor="let event of latestEvents">
-          <div class="event-cover" [style.background]="event.cover"></div>
-          <div class="event-body">
-            <span class="tag">{{ event.category }}</span>
+      <div class="event-list">
+        <article class="event-row" *ngFor="let event of currentMonthEvents()">
+          <span class="event-accent" [style.background]="event.cover"></span>
+          <div class="event-info">
+            <div class="event-meta-top">
+              <span class="club-badge">{{ getClubName(event.clubId) }}</span>
+              <span class="small-tag">{{ event.category }}</span>
+            </div>
             <h3>{{ event.title }}</h3>
-            <p>{{ event.description }}</p>
-            <div class="meta-row">
-              <span>{{ event.startTime | date:'yyyy/MM/dd' }}</span>
+            <div class="event-details">
+              <span>{{ event.startTime | date:'MM/dd EEEE' }}</span>
               <span>{{ event.location }}</span>
               <span>剩餘 {{ remaining(event) }}</span>
             </div>
-            <a class="btn small" [routerLink]="['/clubs', event.clubId, 'events', event.id]">查看詳情</a>
           </div>
+          <a class="btn small discord-btn" [routerLink]="['/clubs', event.clubId, 'events', event.id]">查看</a>
         </article>
+        <p class="empty" *ngIf="currentMonthEvents().length === 0">本月暫無活動。</p>
       </div>
     </section>
 
@@ -90,16 +93,93 @@ import { Club, ClubEvent } from '../../types/club.models';
       </div>
     </footer>
   `,
+  styles: [`
+    .event-list {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .event-row {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.7rem 1rem;
+      border-radius: 0.5rem;
+      background: #2b2d31;
+      transition: background 0.15s;
+    }
+    .event-row:hover {
+      background: #35373c;
+    }
+    .event-accent {
+      flex: 0 0 3px;
+      align-self: stretch;
+      border-radius: 999px;
+    }
+    .event-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .event-meta-top {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.2rem;
+    }
+    .club-badge {
+      color: #b5bac1;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .small-tag {
+      padding: 0.1rem 0.4rem;
+      font-size: 0.65rem;
+      color: #dbdee1;
+      background: #4e5058;
+      border-radius: 999px;
+    }
+    .event-info h3 {
+      margin-bottom: 0.2rem;
+      color: #f2f3f5;
+      font-size: 0.92rem;
+      line-height: 1.3;
+    }
+    .event-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      color: #b5bac1;
+      font-size: 0.78rem;
+    }
+    .discord-btn {
+      flex: 0 0 auto;
+      color: #fff;
+      background: #5865f2;
+      border-color: transparent;
+    }
+    .discord-btn:hover {
+      background: #4752c4;
+    }
+  `],
 })
 export class HomePage {
   readonly data = inject(ClubDataService);
+
+  readonly currentMonthEvents = computed(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return this.data.events().filter(e => {
+      const d = new Date(e.startTime);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+  });
 
   get featuredClubs(): Club[] {
     return this.data.clubs().slice(0, 3);
   }
 
-  get latestEvents(): ClubEvent[] {
-    return this.data.events().slice(0, 3);
+  getClubName(clubId: string): string {
+    return this.data.clubById(clubId)?.name ?? '';
   }
 
   remaining(event: ClubEvent): number {

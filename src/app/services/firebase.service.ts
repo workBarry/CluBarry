@@ -151,6 +151,10 @@ export class FirebaseService {
     return setDoc(doc(this.firestore, `clubMembers/${id}`), data, { merge: true });
   }
 
+  deleteClubMember(id: string): Promise<void> {
+    return deleteDoc(doc(this.firestore, `clubMembers/${id}`));
+  }
+
   // --- Events ---
   watchPublishedEvents(): Observable<ClubEvent[]> {
     const q = query(
@@ -242,7 +246,7 @@ export class FirebaseService {
     return this.snapshotObservable<Notification>(q);
   }
 
-  createNotification(data: Omit<Notification, 'id'>): Promise<DocumentReference> {
+  createNotification(data: Omit<Notification, 'id' | 'createdAt'>): Promise<DocumentReference> {
     return addDoc(collection(this.firestore, 'notifications'), { ...data, createdAt: Timestamp.now() });
   }
 
