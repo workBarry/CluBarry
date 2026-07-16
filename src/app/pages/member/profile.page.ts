@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { FirebaseService } from '../../services/firebase.service';
+import { ApiService } from '../../services/api.service';
 
 @Component({
   selector: 'app-profile-page',
@@ -44,24 +44,29 @@ import { FirebaseService } from '../../services/firebase.service';
     </section>
   `,
 })
-export class ProfilePage {
+export class ProfilePage implements OnInit {
   readonly auth = inject(AuthService);
-  private readonly firebase = inject(FirebaseService);
+  private readonly api = inject(ApiService);
 
   profile = { name: '', email: '', phone: '', department: '' };
   message = '';
 
-  constructor() {
+  ngOnInit(): void {
     const user = this.auth.currentUser();
-    if (user) {
-      this.profile = { name: user.name, email: user.email, phone: '', department: '' };
-    }
+    if (!user) return;
+    this.profile = { name: user.name, email: user.email, phone: '', department: '' };
+    this.api.getUser(user.id).subscribe((doc) => {
+      if (doc) {
+        this.profile.phone = doc.phone ?? '';
+        this.profile.department = doc.department ?? '';
+      }
+    });
   }
 
   async save(): Promise<void> {
     const user = this.auth.currentUser();
     if (!user) return;
-    await this.firebase.updateUser(user.id, this.profile);
+    await this.api.updateUser(user.id, this.profile).toPromise();
     this.message = '個人資料已更新。';
   }
 }

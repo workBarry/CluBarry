@@ -1,7 +1,7 @@
 export type UserRole = 'Visitor' | 'Member' | 'Officer' | 'Admin';
 export type UserStatus = 'active' | 'pending' | 'suspended';
 export type EventStatus = 'draft' | 'published' | 'closed' | 'completed';
-export type RegistrationStatus = 'registered' | 'cancelled' | 'completed' | 'waitlisted';
+export type RegistrationStatus = 'pending' | 'registered' | 'cancelled' | 'completed' | 'waitlisted';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 export type AnnouncementStatus = 'draft' | 'published';
 export type ClubStatus = 'pending' | 'active' | 'closed';
@@ -92,6 +92,8 @@ export interface Registration {
   checkIn: boolean;
   status: RegistrationStatus;
   createdAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export interface Announcement {

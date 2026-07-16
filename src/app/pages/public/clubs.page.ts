@@ -1,66 +1,79 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../services/auth.service';
 import { ClubDataService } from '../../services/club-data.service';
-import { Club, RoleInClub } from '../../types/club.models';
 
 @Component({
-  selector: 'app-my-clubs-page',
-  imports: [CommonModule, RouterLink],
+  selector: 'app-clubs-page',
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <section class="page-heading">
-      <span class="eyebrow">My Clubs</span>
-      <h1>我的社團</h1>
-      <p>你參與的社團與在其中的角色。</p>
-    </section>
-
-    <section class="card-grid">
-      <article class="club-card" *ngFor="let row of myClubs">
-        <a class="club-cover"
-           [routerLink]="['/clubs', row.club.id]"
-           [style.background]="row.club.cover"
-           [attr.aria-label]="'進入 ' + row.club.name">
-          <span class="club-logo">{{ row.club.logo }}</span>
-        </a>
-
-        <div class="club-body">
-          <div class="club-title-row">
-            <div>
-              <h3>
-                <a [routerLink]="['/clubs', row.club.id]">{{ row.club.name }}</a>
-              </h3>
-              <span class="tag">{{ row.role }}</span>
-            </div>
-            <span class="verified-icon" title="社團成員">✓</span>
-          </div>
-
-          <p>{{ row.club.description }}</p>
-
-          <div class="club-footer">
-            <span class="club-online" [class.pending]="row.club.status === 'pending'">
-              <span></span>
-              {{ row.club.status === 'pending' ? '審核中' : '社團開放中' }}
-            </span>
-            <a class="btn small" [routerLink]="['/clubs', row.club.id]">進入社團</a>
-          </div>
-        </div>
-      </article>
-      <p class="empty" *ngIf="myClubs.length === 0">你還沒有加入任何社團。</p>
+      <span class="eyebrow">Clubs</span>
+      <h1>社團目錄</h1>
+      <p>瀏覽所有已開放的社團，找到你感興趣的社團並加入。</p>
     </section>
 
     <section class="section">
-      <a class="btn primary" routerLink="/create-club">開立新社團</a>
+      <input class="search-input" type="text" placeholder="搜尋社團名稱、分類、描述..."
+        [ngModel]="keyword()" (ngModelChange)="keyword.set($event)" />
+      <div class="card-grid">
+        <article class="club-card" *ngFor="let club of filtered()">
+          <a class="club-cover"
+             [routerLink]="['/clubs', club.id]"
+             [style.background]="club.cover"
+             [attr.aria-label]="'進入 ' + club.name">
+            <span class="club-logo">{{ club.logo }}</span>
+          </a>
+
+          <div class="club-body">
+            <div class="club-title-row">
+              <div>
+                <h3>
+                  <a [routerLink]="['/clubs', club.id]">{{ club.name }}</a>
+                </h3>
+                <span class="tag">{{ club.category }}</span>
+              </div>
+              <span class="verified-icon" title="公開社團">✓</span>
+            </div>
+
+            <p>{{ club.description }}</p>
+
+            <div class="club-footer">
+              <span class="club-online" [class.pending]="club.status === 'pending'">
+                <span></span>
+                {{ club.status === 'pending' ? '審核中' : '社團開放中' }}
+              </span>
+              <a class="btn small" [routerLink]="['/clubs', club.id]">進入社團</a>
+            </div>
+          </div>
+        </article>
+        <p class="empty" *ngIf="filtered().length === 0">找不到符合的社團。</p>
+      </div>
     </section>
   `,
   styles: [`
-    :host {
-      display: block;
-    }
-
     a {
       color: inherit;
       text-decoration: none;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--dc-border);
+      border-radius: 999px;
+      background: var(--dc-input-bg);
+      color: var(--dc-text);
+      font-size: 0.92rem;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .search-input:focus {
+      border-color: var(--dc-blurple);
+      box-shadow: 0 0 0 2px var(--dc-blurple);
     }
 
     .club-card {
@@ -229,16 +242,17 @@ import { Club, RoleInClub } from '../../types/club.models';
     }
   `],
 })
-export class MyClubsPage {
-  private readonly auth = inject(AuthService);
-  private readonly clubData = inject(ClubDataService);
+export class ClubsPage {
+  readonly data = inject(ClubDataService);
+  readonly keyword = signal('');
 
-  get myClubs(): { club: Club; role: RoleInClub }[] {
-    const userId = this.auth.currentUser()?.id;
-    if (!userId) return [];
-    return this.clubData.myClubs().map((club) => ({
-      club,
-      role: this.clubData.myRoleInClub(club.id) ?? 'Member',
-    }));
-  }
+  readonly filtered = computed(() => {
+    const q = this.keyword().trim().toLowerCase();
+    if (!q) return this.data.clubs();
+    return this.data.clubs().filter((c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.category.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q),
+    );
+  });
 }

@@ -1,11 +1,11 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
-import { FirebaseService } from './firebase.service';
 
 export const loginGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  if (!auth.authResolved()) return true;
   if (auth.isAuthenticated) {
     router.navigate(['/']);
     return false;
@@ -15,9 +15,9 @@ export const loginGuard: CanActivateFn = () => {
 
 export const memberGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
-  const firebase = inject(FirebaseService);
   const router = inject(Router);
-  if (!auth.isAuthenticated || !firebase.currentFirebaseUser()) {
+  if (!auth.authResolved()) return true;
+  if (!auth.isAuthenticated) {
     router.navigate(['/login']);
     return false;
   }

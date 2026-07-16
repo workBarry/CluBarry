@@ -1,7 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Injectable, inject, signal, effect } from '@angular/core';
+import { Subscription, interval, switchMap, of, catchError, filter, take } from 'rxjs';
 import { AuthService } from './auth.service';
-import { FirebaseService } from './firebase.service';
+import { ApiService } from './api.service';
 import {
   Announcement,
   Club,
@@ -13,11 +13,16 @@ import {
   Session,
 } from '../types/club.models';
 
+const POLL_MS = 30_000;
+
 @Injectable({ providedIn: 'root' })
 export class ClubDataService {
-  private readonly firebase = inject(FirebaseService);
+  private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private subscriptions?: Subscription;
+  private memberSub?: Subscription;
+  private notificationSub?: Subscription;
+  private initialLoadDone = false;
 
   private readonly clubState = signal<Club[]>([]);
   private readonly clubMemberState = signal<ClubMember[]>([]);
@@ -26,14 +31,13 @@ export class ClubDataService {
   private readonly announcementState = signal<Announcement[]>([]);
   private readonly registrationState = signal<Registration[]>([]);
   private readonly notificationState = signal<Notification[]>([]);
-  private readonly userState = signal<ClubUser[]>([]);
 
   readonly firebaseReady = signal(false);
   message = '';
 
-  get currentUser(): ClubUser {
+  get currentUser(): ClubUser | null {
     const authUser = this.auth.currentUser();
-    if (!authUser) return { ...this.userState()[0] } as ClubUser;
+    if (!authUser) return null;
     return {
       id: authUser.id,
       avatar: authUser.avatar,
@@ -50,46 +54,73 @@ export class ClubDataService {
   }
 
   get currentUserId(): string {
-    return this.auth.currentUser()?.id ?? '0';
+    return this.auth.currentUser()?.id ?? '';
+  }
+
+  constructor() {
+    effect(() => {
+      const userId = this.auth.currentUser()?.id;
+      if (!userId) {
+        this.clubMemberState.set([]);
+        this.notificationState.set([]);
+        this.memberSub?.unsubscribe();
+        this.notificationSub?.unsubscribe();
+        return;
+      }
+      this.memberSub?.unsubscribe();
+      this.memberSub = interval(POLL_MS).pipe(
+        switchMap(() => this.api.getMyMemberships(userId).pipe(catchError(() => of([] as ClubMember[])))),
+      ).subscribe((items) => this.clubMemberState.set(items));
+      this.loadMemberships(userId);
+      this.notificationSub?.unsubscribe();
+      this.notificationSub = interval(POLL_MS).pipe(
+        switchMap(() => this.api.getNotifications(userId).pipe(catchError(() => of([] as Notification[])))),
+      ).subscribe((items) => this.notificationState.set(items));
+      this.loadNotifications(userId);
+    });
   }
 
   startSync(): void {
     if (this.subscriptions && !this.subscriptions.closed) return;
     this.subscriptions = new Subscription();
-    this.subscriptions.add(this.firebase.watchActiveClubs().subscribe({
-      next: (items) => this.clubState.set(items as Club[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchClubMembersByUser(this.currentUserId).subscribe({
-      next: (items) => this.clubMemberState.set(items as ClubMember[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchSessions().subscribe({
-      next: (items) => this.sessionState.set(items as Session[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchPublishedEvents().subscribe({
-      next: (items) => this.eventState.set(items as ClubEvent[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchPublishedAnnouncements().subscribe({
-      next: (items) => this.announcementState.set(items as Announcement[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchRegistrationsByUser(this.currentUserId).subscribe({
-      next: (items) => this.registrationState.set(items as Registration[]),
-      error: () => {},
-    }));
-    this.subscriptions.add(this.firebase.watchNotifications(this.currentUserId).subscribe({
-      next: (items) => this.notificationState.set(items as Notification[]),
-      error: () => {},
-    }));
+    this.subscriptions.add(interval(POLL_MS).pipe(
+      switchMap(() => this.api.getClubs().pipe(catchError(() => of([] as Club[])))),
+    ).subscribe((items) => this.clubState.set(items)));
+    this.subscriptions.add(interval(POLL_MS).pipe(
+      switchMap(() => this.api.getSessions().pipe(catchError(() => of([] as Session[])))),
+    ).subscribe((items) => this.sessionState.set(items)));
+    this.subscriptions.add(interval(POLL_MS).pipe(
+      switchMap(() => this.api.getEvents({ status: 'published' }).pipe(catchError(() => of([] as ClubEvent[])))),
+    ).subscribe((items) => this.eventState.set(items)));
+    this.subscriptions.add(interval(POLL_MS).pipe(
+      switchMap(() => this.api.getAnnouncements({ status: 'published' }).pipe(catchError(() => of([] as Announcement[])))),
+    ).subscribe((items) => this.announcementState.set(items)));
+    this.subscriptions.add(interval(POLL_MS).pipe(
+      switchMap(() => this.api.getRegistrations().pipe(catchError(() => of([] as Registration[])))),
+    ).subscribe((items) => this.registrationState.set(items)));
+    this.waitAndLoadInitial();
     this.firebaseReady.set(true);
+  }
+
+  private waitAndLoadInitial(): void {
+    const check = interval(500).pipe(
+      filter(() => this.auth.authResolved()),
+      take(1),
+    ).subscribe(() => {
+      this.loadClubs();
+      this.loadSessions();
+      this.loadEvents();
+      this.loadAnnouncements();
+      this.loadRegistrations();
+    });
+    this.subscriptions?.add(check);
   }
 
   stopSync(): void {
     this.subscriptions?.unsubscribe();
     this.subscriptions = undefined;
+    this.memberSub?.unsubscribe();
+    this.notificationSub?.unsubscribe();
     this.clubState.set([]);
     this.clubMemberState.set([]);
     this.sessionState.set([]);
@@ -99,9 +130,44 @@ export class ClubDataService {
     this.notificationState.set([]);
   }
 
+  private loadClubs(): void {
+    this.api.getClubs().pipe(catchError(() => of([] as Club[])))
+      .subscribe((items) => this.clubState.set(items));
+  }
+
+  private loadSessions(): void {
+    this.api.getSessions().pipe(catchError(() => of([] as Session[])))
+      .subscribe((items) => this.sessionState.set(items));
+  }
+
+  private loadEvents(): void {
+    this.api.getEvents({ status: 'published' }).pipe(catchError(() => of([] as ClubEvent[])))
+      .subscribe((items) => this.eventState.set(items));
+  }
+
+  private loadAnnouncements(): void {
+    this.api.getAnnouncements({ status: 'published' }).pipe(catchError(() => of([] as Announcement[])))
+      .subscribe((items) => this.announcementState.set(items));
+  }
+
+  private loadRegistrations(): void {
+    this.api.getRegistrations().pipe(catchError(() => of([] as Registration[])))
+      .subscribe((items) => this.registrationState.set(items));
+  }
+
+  private loadMemberships(userId: string): void {
+    this.api.getMyMemberships(userId).pipe(catchError(() => of([] as ClubMember[])))
+      .subscribe((items) => this.clubMemberState.set(items));
+  }
+
+  private loadNotifications(userId: string): void {
+    this.api.getNotifications(userId).pipe(catchError(() => of([] as Notification[])))
+      .subscribe((items) => this.notificationState.set(items));
+  }
+
   // --- Clubs ---
   clubs(): Club[] {
-    return [...this.clubState()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...this.clubState()].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   }
 
   clubById(id: string | null): Club | undefined {
@@ -114,7 +180,7 @@ export class ClubDataService {
         .filter((m) => m.userId === this.currentUserId && m.status === 'active')
         .map((m) => m.clubId),
     );
-    return this.clubState().filter((c) => myIds.has(c.id));
+    return this.clubState().filter((c) => myIds.has(c.id) && c.status !== 'closed');
   }
 
   myRoleInClub(clubId: string): ClubMember['roleInClub'] | null {
@@ -129,8 +195,39 @@ export class ClubDataService {
     );
   }
 
+  canManageClub(clubId: string): boolean {
+    const role = this.myRoleInClub(clubId);
+    return role === 'President';
+  }
+
   clubMembersOf(clubId: string): ClubMember[] {
     return this.clubMemberState().filter((m) => m.clubId === clubId);
+  }
+
+  async updateClub(id: string, data: Partial<Club>): Promise<void> {
+    await this.api.updateClub(id, data).toPromise();
+    this.clubState.update((items) => items.map((c) => c.id === id ? { ...c, ...data } : c));
+  }
+
+  async closeClub(id: string): Promise<void> {
+    await this.updateClub(id, { status: 'closed' });
+  }
+
+  async createClub(data: Omit<Club, 'id'>): Promise<{ id: string }> {
+    const result = await this.api.createClub(data).toPromise();
+    this.loadClubs();
+    return result!;
+  }
+
+  async createClubMember(data: Omit<ClubMember, 'id'>): Promise<{ id: string }> {
+    const result = await this.api.createMember(data).toPromise();
+    this.loadMemberships(this.currentUserId);
+    return result!;
+  }
+
+  async deleteClub(id: string): Promise<void> {
+    await this.api.deleteClub(id).toPromise();
+    this.clubState.update((items) => items.filter((c) => c.id !== id));
   }
 
   // --- Events ---
@@ -148,6 +245,12 @@ export class ClubDataService {
 
   eventById(id: string | null): ClubEvent | undefined {
     return this.eventState().find((e) => String(e.id) === String(id));
+  }
+
+  async createEvent(data: Omit<ClubEvent, 'id' | 'createdAt'>): Promise<{ id: string }> {
+    const result = await this.api.createEvent(data).toPromise();
+    this.loadEvents();
+    return result!;
   }
 
   // --- Sessions ---
@@ -180,6 +283,22 @@ export class ClubDataService {
     return this.announcementState().find((a) => String(a.id) === String(id));
   }
 
+  async createAnnouncement(data: Omit<Announcement, 'id' | 'createdAt'>): Promise<{ id: string }> {
+    const result = await this.api.createAnnouncement(data).toPromise();
+    this.loadAnnouncements();
+    return result!;
+  }
+
+  async updateAnnouncement(id: string, data: Partial<Announcement>): Promise<void> {
+    await this.api.updateAnnouncement(id, data).toPromise();
+    this.announcementState.update((items) => items.map((a) => a.id === id ? { ...a, ...data } : a));
+  }
+
+  async deleteAnnouncement(id: string): Promise<void> {
+    await this.api.deleteAnnouncement(id).toPromise();
+    this.announcementState.update((items) => items.filter((a) => a.id !== id));
+  }
+
   // --- Registrations ---
   registrationsForCurrentUser(): Registration[] {
     return this.registrationState();
@@ -187,7 +306,13 @@ export class ClubDataService {
 
   isRegistered(sessionId: string): boolean {
     return this.registrationState().some(
-      (r) => String(r.sessionId) === String(sessionId) && r.status === 'registered',
+      (r) => String(r.sessionId) === String(sessionId) && (r.status === 'registered' || r.status === 'pending'),
+    );
+  }
+
+  pendingRegistrations(clubId: string): Registration[] {
+    return this.registrationState().filter(
+      (r) => r.clubId === clubId && r.status === 'pending',
     );
   }
 
@@ -202,6 +327,12 @@ export class ClubDataService {
       return;
     }
 
+    const event = this.eventById(session.eventId);
+    if (event?.deadline && Date.now() > new Date(event.deadline).getTime()) {
+      this.message = '報名已截止。';
+      return;
+    }
+
     const userId = this.currentUserId;
     const newRegistration: Registration = {
       id: Date.now().toString(),
@@ -211,23 +342,71 @@ export class ClubDataService {
       sessionId: session.id,
       paymentStatus: 'unpaid',
       checkIn: false,
-      status: 'registered',
+      status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
     this.registrationState.update((items) => [...items, newRegistration]);
-    this.sessionState.update((items) =>
-      items.map((s) => (s.id === session.id ? { ...s, currentCount: s.currentCount + 1 } : s)),
-    );
-    this.message = `你已報名「${session.title}」。`;
+    this.message = `已送出報名申請「${session.title}」，等待社長審核。`;
 
-    if (this.firebaseReady()) {
-      try {
-        await this.firebase.createRegistration(newRegistration);
-      } catch (e) {
-        console.error('Firebase persist failed:', e);
+    try {
+      const result = await this.api.createRegistration(newRegistration).toPromise();
+      if (result) {
+        this.registrationState.update((items) =>
+          items.map((r) => r.id === newRegistration.id ? { ...r, id: result.id } : r),
+        );
       }
+    } catch (e) {
+      console.error('Registration persist failed:', e);
+      this.registrationState.update((items) => items.filter((r) => r.id !== newRegistration.id));
+      this.message = '報名送出失敗，請稍後再試。';
     }
+  }
+
+  approveRegistration(registration: Registration): void {
+    const session = this.sessionState().find((s) => s.id === registration.sessionId);
+    if (session && session.currentCount >= session.capacity) {
+      this.message = '該場次已額滿，無法通過審核。';
+      return;
+    }
+
+    const approverName = this.auth.currentUser()?.name ?? '管理員';
+    const now = new Date().toISOString();
+
+    this.registrationState.update((items) =>
+      items.map((r) => r.id === registration.id ? { ...r, status: 'registered' as const, approvedBy: approverName, approvedAt: now } : r),
+    );
+    if (session) {
+      this.sessionState.update((items) =>
+        items.map((s) => s.id === session.id ? { ...s, currentCount: s.currentCount + 1 } : s),
+      );
+    }
+
+    this.message = '已通過報名審核。';
+    this.api.updateRegistration(registration.id, { status: 'registered', approvedBy: approverName, approvedAt: now }).toPromise();
+    this.api.createNotification({
+      userId: registration.userId,
+      title: '活動報名已通過',
+      content: `你報名的活動已通過審核。`,
+      type: 'review',
+      isRead: false,
+    }).toPromise();
+  }
+
+  rejectRegistration(registration: Registration): void {
+    this.registrationState.update((items) =>
+      items.map((r) => r.id === registration.id ? { ...r, status: 'cancelled' as const } : r),
+    );
+
+    this.message = '已拒絕報名申請。';
+    this.api.updateRegistration(registration.id, { status: 'cancelled' }).toPromise();
+    this.api.createNotification({
+      userId: registration.userId,
+      title: '活動報名未通過',
+      content: `你報名的活動未通過審核，如有疑問請聯繫社團幹部。`,
+      type: 'review',
+      isRead: false,
+    }).toPromise();
   }
 
   cancelRegistration(registrationId: string): void {
@@ -237,9 +416,7 @@ export class ClubDataService {
       this.sessionState.update((s) =>
         s.map((x) => (x.id === reg.sessionId ? { ...x, currentCount: Math.max(0, x.currentCount - 1) } : x)),
       );
-      if (this.firebaseReady()) {
-        this.firebase.updateRegistration(registrationId, { status: 'cancelled' });
-      }
+      this.api.updateRegistration(registrationId, { status: 'cancelled' }).toPromise();
       return items.map((r) =>
         String(r.id) === String(registrationId) ? { ...r, status: 'cancelled' } : r,
       );
@@ -253,6 +430,6 @@ export class ClubDataService {
 
   markNotificationRead(id: string): void {
     this.notificationState.update((items) => items.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
-    if (this.firebaseReady()) this.firebase.markNotificationRead(id);
+    this.api.markNotificationRead(id).toPromise();
   }
 }

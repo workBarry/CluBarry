@@ -18,20 +18,12 @@ export class AuthService {
   private readonly router = inject(Router);
 
   readonly currentUser = signal<AuthUser | null>(null);
+  readonly authResolved = signal(false);
   readonly loading = signal(false);
   readonly error = signal('');
   readonly success = signal('');
 
   constructor() {
-    const saved = localStorage.getItem('club_user');
-    if (saved) {
-      try {
-        this.currentUser.set(JSON.parse(saved));
-      } catch {
-        localStorage.removeItem('club_user');
-      }
-    }
-
     effect((onCleanup) => {
       const fbUser = this.firebase.currentFirebaseUser();
       if (fbUser) {
@@ -52,17 +44,20 @@ export class AuthService {
               this.currentUser.set(fallback);
               localStorage.setItem('club_user', JSON.stringify(fallback));
             }
+            this.authResolved.set(true);
           },
           error: () => {
             const fallback = this.firebaseFallback(fbUser.uid, fbUser.displayName, fbUser.email);
             this.currentUser.set(fallback);
             localStorage.setItem('club_user', JSON.stringify(fallback));
+            this.authResolved.set(true);
           },
         });
         onCleanup(() => sub.unsubscribe());
       } else {
         this.currentUser.set(null);
         localStorage.removeItem('club_user');
+        this.authResolved.set(true);
       }
     });
 

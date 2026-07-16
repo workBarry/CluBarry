@@ -3,6 +3,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './services/auth.service';
 import { ClubDataService } from './services/club-data.service';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -12,11 +13,12 @@ import { ClubDataService } from './services/club-data.service';
 })
 export class AppComponent implements OnInit {
   readonly auth = inject(AuthService);
+  readonly theme = inject(ThemeService);
   private readonly data = inject(ClubDataService);
 
   readonly navItems = [
     { label: '首頁', path: '/', exact: true },
-    { label: '社團', path: '/', exact: true },
+    { label: '社團', path: '/clubs' },
     { label: '公告', path: '/announcements' },
     { label: '活動', path: '/events' },
   ];

@@ -12,6 +12,100 @@
   --warning: #b45309;
   --danger: #b91c1c;
   --shadow: 0 18px 50px rgba(15, 23, 42, 0.1);
+  --header-bg: rgba(255, 255, 255, 0.88);
+  --header-border: rgba(219, 227, 239, 0.9);
+  --card-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  --announcement-bg: #fbfdff;
+  --input-bg: #fff;
+  --nav-hover: #e7f5ed;
+  --nav-active-bg: #e7f5ed;
+  --drawer-bg: #fff;
+  --unread-bg: #f0fdfa;
+  --table-header-bg: #f9fbfd;
+  --form-bg: #f9fbfd;
+  --badge-green-bg: #e7f5ed;
+  --badge-green-text: var(--primary-strong);
+  --badge-orange-bg: #fff7ed;
+  --badge-orange-text: var(--warning);
+  /* Home page Discord palette */
+  --dc-bg: #ffffff;
+  --dc-base: #f2f3f5;
+  --dc-surface: #f2f3f5;
+  --dc-surface-hover: #e3e5e8;
+  --dc-surface-active: #d4d7dc;
+  --dc-border: #e3e5e8;
+  --dc-text: #060607;
+  --dc-text-secondary: #4e5058;
+  --dc-text-muted: #80848e;
+  --dc-header: #f2f3f5;
+  --dc-blurple: #5865f2;
+  --dc-blurple-dark: #4752c4;
+  --dc-blurple-light: #949cf7;
+  --dc-green: #23a55a;
+  --dc-red: #f23f42;
+  --dc-white: #ffffff;
+  --dc-tag-bg: rgba(0, 0, 0, 0.06);
+  --dc-tag-text: #060607;
+  --dc-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --dc-card-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --dc-input-bg: #e3e5e8;
+  --dc-overlay: rgba(0, 0, 0, 0.35);
+  --dc-strip-border: #e3e5e8;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1e1f22;
+  --surface: #2b2d31;
+  --surface-soft: #232428;
+  --text: #f2f3f5;
+  --muted: #949ba4;
+  --line: #3f4147;
+  --primary: #5865f2;
+  --primary-strong: #949cf7;
+  --accent: #5865f2;
+  --warning: #f0b232;
+  --danger: #f23f42;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+  --header-bg: rgba(30, 31, 34, 0.88);
+  --header-border: rgba(63, 65, 71, 0.9);
+  --card-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  --announcement-bg: #2b2d31;
+  --input-bg: #1e1f22;
+  --nav-hover: #35373c;
+  --nav-active-bg: #35373c;
+  --drawer-bg: #2b2d31;
+  --unread-bg: #2e3035;
+  --table-header-bg: #232428;
+  --form-bg: #232428;
+  --badge-green-bg: rgba(35, 165, 90, 0.12);
+  --badge-green-text: #23a55a;
+  --badge-orange-bg: rgba(240, 178, 50, 0.12);
+  --badge-orange-text: #f0b232;
+  /* Home page Discord palette */
+  --dc-bg: #313338;
+  --dc-base: #2b2d31;
+  --dc-surface: #2b2d31;
+  --dc-surface-hover: #35373c;
+  --dc-surface-active: #3f4147;
+  --dc-border: #3f4147;
+  --dc-text: #f2f3f5;
+  --dc-text-secondary: #dbdee1;
+  --dc-text-muted: #949ba4;
+  --dc-header: #1e1f22;
+  --dc-blurple: #5865f2;
+  --dc-blurple-dark: #4752c4;
+  --dc-blurple-light: #949cf7;
+  --dc-green: #23a55a;
+  --dc-red: #f23f42;
+  --dc-white: #ffffff;
+  --dc-tag-bg: rgba(255, 255, 255, 0.12);
+  --dc-tag-text: #dbdee1;
+  --dc-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+  --dc-card-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.24);
+  --dc-input-bg: #1e1f22;
+  --dc-overlay: rgba(0, 0, 0, 0.55);
+  --dc-strip-border: #3f4147;
 }
 
 * {
@@ -27,9 +121,8 @@ body {
   margin: 0;
   font-family: Inter, "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 26rem),
-    linear-gradient(180deg, #fbfcff 0%, var(--bg) 22rem);
+  background: var(--bg);
+  transition: background 0.2s, color 0.2s;
 }
 
 a {
@@ -52,12 +145,11 @@ select {
   position: sticky;
   top: 0;
   z-index: 10;
-  grid-template-columns: auto 1fr auto;
   gap: 1.5rem;
   align-items: center;
   padding: 1rem clamp(1rem, 3vw, 3rem);
-  border-bottom: 1px solid rgba(219, 227, 239, 0.9);
-  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid var(--header-border);
+  background: var(--header-bg);
   backdrop-filter: blur(18px);
 }
 
@@ -113,7 +205,7 @@ select {
 .main-nav a.active,
 .main-nav a:hover {
   color: var(--primary-strong);
-  background: #e7f5ed;
+  background: var(--nav-hover);
 }
 
 .user-chip {
@@ -227,8 +319,8 @@ h3 {
 
 .btn.secondary {
   color: var(--primary-strong);
-  background: #e7f5ed;
-  border-color: #bdebd0;
+  background: var(--badge-green-bg);
+  border-color: var(--line);
 }
 
 .hero-section .btn.secondary {
@@ -332,7 +424,7 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   background: var(--surface);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--card-shadow);
 }
 
 .panel,
@@ -388,14 +480,14 @@ h3 {
 .role-stack span,
 .tag,
 .status-pill {
-  color: var(--primary-strong);
-  background: #e7f5ed;
+  color: var(--badge-green-text);
+  background: var(--badge-green-bg);
 }
 
 .pin,
 .type-dot {
-  color: var(--warning);
-  background: #fff7ed;
+  color: var(--badge-orange-text);
+  background: var(--badge-orange-bg);
 }
 
 .announcement-list {
@@ -409,7 +501,7 @@ h3 {
   padding: 1rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #fbfdff;
+  background: var(--announcement-bg);
 }
 
 .announcement-item small,
@@ -439,7 +531,7 @@ h3 {
   border: 1px solid var(--line);
   border-radius: 0.9rem;
   background: var(--surface);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--card-shadow);
 }
 
 .event-cover {
@@ -480,7 +572,7 @@ select {
   border-radius: 0.65rem;
   padding: 0 0.85rem;
   color: var(--text);
-  background: #fff;
+  background: var(--input-bg);
 }
 
 .list-panel {
@@ -607,7 +699,7 @@ select {
   border-radius: 999px;
   padding: 0.6rem 1rem;
   color: var(--muted);
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   font-weight: 800;
 }
@@ -625,7 +717,7 @@ select {
 }
 
 .notification-row.unread {
-  background: #f0fdfa;
+  background: var(--unread-bg);
 }
 
 .profile-grid {

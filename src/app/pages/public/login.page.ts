@@ -13,12 +13,6 @@ import { AuthService } from '../../services/auth.service';
         <span class="eyebrow">Member Login</span>
         <h1>社員登入</h1>
         <p class="muted">登入後可以報名活動、查看自己的報名紀錄、接收活動與審核通知。</p>
-        <div class="mock-hint">
-          <strong>測試帳號</strong>
-          @for (account of mockAccounts; track account) {
-            <span>{{ account }}</span>
-          }
-        </div>
       </div>
 
       <form class="form-card" (ngSubmit)="submit()">
@@ -49,28 +43,16 @@ import { AuthService } from '../../services/auth.service';
   `,
   styles: [
     `
-      .mock-hint {
-        display: grid; gap: 0.25rem; margin-top: 1rem; padding: 0.75rem;
-        border: 1px dashed #dbe3ef; border-radius: 0.65rem; background: #f5f7fb;
-        font-size: 0.82rem; color: #65758b;
-      }
-      .mock-hint strong { color: #166534; }
-      .success { color: #166534; }
+      .success { color: var(--primary); }
     `,
   ],
 })
 export class LoginPage {
   readonly auth = inject(AuthService);
-  email = 'barry@example.com';
-  password = 'password';
-  remember = true;
+  email = '';
+  password = '';
+  remember = false;
   showPassword = false;
-
-  readonly mockAccounts = [
-    'barry&#64;example.com / password (Member)',
-    'amy&#64;example.com / password (Officer)',
-    'kevin&#64;example.com / password (Admin)',
-  ];
 
   async submit(): Promise<void> {
     await this.auth.login(this.email, this.password);

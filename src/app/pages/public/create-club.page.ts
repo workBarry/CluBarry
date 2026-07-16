@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { FirebaseService } from '../../services/firebase.service';
+import { ClubDataService } from '../../services/club-data.service';
 
 @Component({
   selector: 'app-create-club-page',
@@ -32,7 +32,7 @@ import { FirebaseService } from '../../services/firebase.service';
 })
 export class CreateClubPage {
   readonly auth = inject(AuthService);
-  private readonly firebase = inject(FirebaseService);
+  private readonly clubData = inject(ClubDataService);
   private readonly router = inject(Router);
 
   name = '';
@@ -49,33 +49,35 @@ export class CreateClubPage {
       return;
     }
 
-    const club = {
-      name: this.name.trim(),
-      logo: this.name.trim().charAt(0),
-      cover: 'linear-gradient(135deg, #2563eb, #14b8a6)',
-      description: this.description.trim(),
-      category: this.category.trim(),
-      tags: this.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      status: 'pending' as const,
-      createdBy: uid,
-      createdAt: new Date().toISOString(),
-    };
-
     this.loading = true;
     this.message = '';
+    let clubRef: { id: string } | null = null;
     try {
-      const ref = await this.firebase.createClub(club);
-      await this.firebase.createClubMember({
-        clubId: ref.id,
+      clubRef = await this.clubData.createClub({
+        name: this.name.trim(),
+        logo: this.name.trim().charAt(0),
+        cover: 'linear-gradient(135deg, #2563eb, #14b8a6)',
+        description: this.description.trim(),
+        category: this.category.trim(),
+        tags: this.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        status: 'pending',
+        createdBy: uid,
+        createdAt: new Date().toISOString(),
+      });
+      await this.clubData.createClubMember({
+        clubId: clubRef.id,
         userId: uid,
         roleInClub: 'President',
-        status: 'active',
+        status: 'pending',
         joinedAt: new Date().toISOString(),
       });
       this.message = '已提交，等待平台審核。';
       this.router.navigate(['/my-clubs']);
     } catch (err: any) {
       console.error('建立社團失敗:', err);
+      if (clubRef?.id) {
+        try { await this.clubData.deleteClub(clubRef.id); } catch { /* ignore rollback error */ }
+      }
       this.message = err?.message ?? '提交失敗，請稍後再試。';
     } finally {
       this.loading = false;

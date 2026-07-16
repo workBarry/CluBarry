@@ -3,6 +3,7 @@ import { memberGuard, loginGuard } from './services/auth.guard';
 import { AnnouncementDetailPage } from './pages/public/announcement-detail.page';
 import { AnnouncementsPage } from './pages/public/announcements.page';
 import { ClubPage } from './pages/public/club.page';
+import { ClubsPage } from './pages/public/clubs.page';
 import { CreateClubPage } from './pages/public/create-club.page';
 import { EventDetailPage } from './pages/public/event-detail.page';
 import { EventsPage } from './pages/public/events.page';
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'announcements', component: AnnouncementsPage, title: 'ClubWeb - 公告' },
   { path: 'announcements/:id', component: AnnouncementDetailPage, title: 'ClubWeb - 公告詳情' },
   { path: 'events', component: EventsPage, title: 'ClubWeb - 活動' },
+  { path: 'clubs', component: ClubsPage, title: 'ClubWeb - 社團目錄' },
   { path: 'clubs/:cid', component: ClubPage, title: 'ClubWeb - 社團' },
   { path: 'clubs/:cid/events/:eid', component: EventDetailPage, title: 'ClubWeb - 活動詳情' },
   { path: 'clubs/:cid/events/:eid/sessions/:sid', component: SessionDetailPage, title: 'ClubWeb - 場次詳情' },

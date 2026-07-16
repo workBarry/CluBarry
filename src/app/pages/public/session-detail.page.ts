@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ClubDataService } from '../../services/club-data.service';
 import { Session } from '../../types/club.models';
@@ -8,16 +8,16 @@ import { Session } from '../../types/club.models';
   selector: 'app-session-detail-page',
   imports: [CommonModule, RouterLink],
   template: `
-    <section class="detail-layout" *ngIf="session as s; else missing">
-      <div class="detail-banner" [style.background]="event?.cover">
-        <span>{{ event?.category }}</span>
+    <section class="detail-layout" *ngIf="session() as s; else missing">
+      <div class="detail-banner" [style.background]="event()?.cover">
+        <span>{{ event()?.category }}</span>
         <h1>{{ s.title }}</h1>
       </div>
 
       <div class="content-grid">
         <article class="panel span-7 readable">
           <h2>場次資訊</h2>
-          <p>所屬活動：<a [routerLink]="['/clubs', s.clubId, 'events', s.eventId]">{{ event?.title }}</a></p>
+          <p>所屬活動：<a [routerLink]="['/clubs', s.clubId, 'events', s.eventId]">{{ event()?.title }}</a></p>
           <p>本場次由社長設定是否開放非社員參加。</p>
         </article>
 
@@ -31,8 +31,8 @@ import { Session } from '../../types/club.models';
           </div>
           <p class="notice" *ngIf="data.message">{{ data.message }}</p>
           <button class="btn primary full" type="button" (click)="register(s)"
-            [disabled]="data.isRegistered(s.id) || s.status !== 'open' || s.currentCount >= s.capacity">
-            {{ data.isRegistered(s.id) ? '已報名' : s.status !== 'open' ? '已截止' : '我要報名' }}
+            [disabled]="data.isRegistered(s.id) || s.status !== 'open' || s.currentCount >= s.capacity || isDeadlinePassed()">
+            {{ data.isRegistered(s.id) ? (isPending(s.id) ? '等待審核' : '已報名') : s.status !== 'open' ? '已截止' : s.currentCount >= s.capacity ? '已額滿' : isDeadlinePassed() ? '報名已截止' : '我要報名' }}
           </button>
           <a class="btn secondary full" [routerLink]="['/clubs', s.clubId, 'events', s.eventId]">返回活動</a>
         </aside>
@@ -51,12 +51,25 @@ export class SessionDetailPage {
   readonly data = inject(ClubDataService);
   private readonly route = inject(ActivatedRoute);
 
-  readonly session = this.data.sessionById(this.route.snapshot.paramMap.get('sid'));
-  get event() {
-    return this.session ? this.data.eventById(this.session.eventId) : undefined;
-  }
+  readonly session = computed(() => this.data.sessionById(this.route.snapshot.paramMap.get('sid')));
+  readonly event = computed(() => {
+    const s = this.session();
+    return s ? this.data.eventById(s.eventId) : undefined;
+  });
 
   register(session: Session): void {
     this.data.register(session);
+  }
+
+  isDeadlinePassed(): boolean {
+    const deadline = this.event()?.deadline;
+    if (!deadline) return false;
+    return Date.now() > new Date(deadline).getTime();
+  }
+
+  isPending(sessionId: string): boolean {
+    return this.data.registrationsForCurrentUser().some(
+      (r) => String(r.sessionId) === String(sessionId) && r.status === 'pending',
+    );
   }
 }

@@ -97,6 +97,12 @@ export class FirebaseService {
     return signOut(this.auth);
   }
 
+  async getIdToken(): Promise<string> {
+    const user = this.auth.currentUser;
+    if (!user) throw new Error('Not authenticated');
+    return user.getIdToken();
+  }
+
   // --- Users ---
   watchUsers(): Observable<ClubUser[]> {
     return this.snapshotObservable<ClubUser>(collection(this.firestore, 'users'));
@@ -130,6 +136,10 @@ export class FirebaseService {
 
   updateClub(id: string, data: Partial<Club>): Promise<void> {
     return setDoc(doc(this.firestore, `clubs/${id}`), data, { merge: true });
+  }
+
+  deleteClub(id: string): Promise<void> {
+    return deleteDoc(doc(this.firestore, `clubs/${id}`));
   }
 
   // --- Club Members ---
@@ -177,6 +187,10 @@ export class FirebaseService {
     return this.docObservable<ClubEvent>(doc(this.firestore, `events/${id}`));
   }
 
+  createEvent(data: Omit<ClubEvent, 'id' | 'createdAt'>): Promise<DocumentReference> {
+    return addDoc(collection(this.firestore, 'events'), { ...data, createdAt: Timestamp.now() });
+  }
+
   // --- Sessions ---
   watchSessionsByEvent(eventId: string): Observable<Session[]> {
     const q = query(collection(this.firestore, 'sessions'), where('eventId', '==', eventId));
@@ -204,6 +218,11 @@ export class FirebaseService {
 
   watchRegistrationsBySession(sessionId: string): Observable<Registration[]> {
     const q = query(collection(this.firestore, 'registrations'), where('sessionId', '==', sessionId));
+    return this.snapshotObservable<Registration>(q);
+  }
+
+  watchRegistrations(): Observable<Registration[]> {
+    const q = query(collection(this.firestore, 'registrations'));
     return this.snapshotObservable<Registration>(q);
   }
 
@@ -235,6 +254,18 @@ export class FirebaseService {
 
   getAnnouncement(id: string): Observable<Announcement | undefined> {
     return this.docObservable<Announcement>(doc(this.firestore, `announcements/${id}`));
+  }
+
+  createAnnouncement(data: Omit<Announcement, 'id' | 'createdAt'>): Promise<DocumentReference> {
+    return addDoc(collection(this.firestore, 'announcements'), { ...data, createdAt: Timestamp.now() });
+  }
+
+  updateAnnouncement(id: string, data: Partial<Announcement>): Promise<void> {
+    return setDoc(doc(this.firestore, `announcements/${id}`), data, { merge: true });
+  }
+
+  deleteAnnouncement(id: string): Promise<void> {
+    return deleteDoc(doc(this.firestore, `announcements/${id}`));
   }
 
   // --- Notifications ---

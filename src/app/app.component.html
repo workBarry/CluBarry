@@ -37,7 +37,12 @@
   <aside class="drawer" [class.open]="drawerOpen">
     <div class="drawer-header">
       <span *ngIf="auth.currentUser() as user">{{ user.name }}</span>
-      <button class="drawer-close" (click)="closeDrawer()">✕</button>
+      <div>
+        <button class="theme-toggle" (click)="theme.toggle()" [title]="theme.dark() ? '切換為淺色模式' : '切換為深色模式'">
+          {{ theme.dark() ? '☀️' : '🌙' }}
+        </button>
+        <button class="drawer-close" (click)="closeDrawer()">✕</button>
+      </div>
     </div>
     <nav class="drawer-nav">
       <a *ngFor="let item of drawerItems" [routerLink]="item.path" (click)="closeDrawer()">{{ item.label }}</a>

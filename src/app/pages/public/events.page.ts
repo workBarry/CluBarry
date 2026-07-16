@@ -65,7 +65,7 @@ export class EventsPage {
   }
 
   remaining(event: ClubEvent): number {
-    return event.capacity - event.currentCount;
+    return Math.max(0, event.capacity - event.currentCount);
   }
 
   clubName(event: ClubEvent): string {
