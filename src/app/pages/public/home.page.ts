@@ -253,6 +253,18 @@ interface CmsContent {
                 </span>
 
                 <a
+                  class="btn small primary"
+                  [routerLink]="[
+                    '/clubs',
+                    event.clubId,
+                    'events',
+                    event.id
+                  ]"
+                >
+                  報名
+                </a>
+
+                <a
                   class="btn small discord-btn"
                   [routerLink]="[
                     '/clubs',
