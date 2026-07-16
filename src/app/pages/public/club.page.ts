@@ -59,6 +59,13 @@ interface MemberRow {
             <h3>{{ event.title }}</h3>
             <p>{{ event.description }}</p>
             <small class="event-date">{{ event.startTime | date:'MM/dd HH:mm' }} - {{ event.endTime | date:'MM/dd HH:mm' }}</small>
+            <div class="event-reg-info">
+              <span class="reg-status" [class.full]="event.currentCount >= event.capacity" [class.expired]="isExpired(event)">
+                {{ event.currentCount >= event.capacity ? '已額滿' : isExpired(event) ? '已截止' : '報名中' }}
+              </span>
+              <span class="reg-count">{{ event.currentCount }}/{{ event.capacity }} 人</span>
+              <span class="reg-deadline" *ngIf="event.deadline">截止 {{ event.deadline | date:'MM/dd HH:mm' }}</span>
+            </div>
           </div>
           <a class="btn small discord-btn" [routerLink]="['/clubs', c.id, 'events', event.id]">場次與報名</a>
         </article>
@@ -697,6 +704,34 @@ interface MemberRow {
     .dropdown-menu button.danger {
       color: var(--danger);
     }
+    .event-reg-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 0.3rem;
+      font-size: 0.72rem;
+    }
+    .reg-status {
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-weight: 700;
+      background: rgba(35, 165, 90, 0.15);
+      color: #23a55a;
+    }
+    .reg-status.full {
+      background: rgba(237, 67, 55, 0.15);
+      color: #ed4245;
+    }
+    .reg-status.expired {
+      background: rgba(250, 166, 26, 0.15);
+      color: #faa61a;
+    }
+    .reg-count {
+      color: var(--muted);
+    }
+    .reg-deadline {
+      color: var(--muted);
+    }
   `],
 })
 export class ClubPage implements OnDestroy {
@@ -1051,5 +1086,10 @@ export class ClubPage implements OnDestroy {
   openAnnouncementMenu(id: string, e: Event): void {
     e.stopPropagation();
     this.announcementMenuId.set(this.announcementMenuId() === id ? '' : id);
+  }
+
+  isExpired(event: ClubEvent): boolean {
+    if (!event.deadline) return false;
+    return Date.now() > new Date(event.deadline).getTime();
   }
 }
